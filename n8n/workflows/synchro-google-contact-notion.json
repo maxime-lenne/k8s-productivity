@@ -1,0 +1,655 @@
+{
+  "name": "Synchro Google Contact -> Notion",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "getAll",
+        "limit": 10
+      },
+      "name": "Google Contacts",
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "1",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "databaseId": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+        "filterType": "complex",
+        "filterConditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "key": "Google contact Id",
+              "condition": "equal",
+              "value": "={{ $json.resourceName }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "name": "Search Notion User",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.organizations !== undefined && $json.organizations.length > 0 }}",
+              "value2": true,
+              "operation": "equals"
+            }
+          ]
+        }
+      },
+      "name": "Has Organization?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "databaseId": "45f6dc28-efe6-4f59-bfe6-cdfd9ae26957",
+        "filterType": "complex",
+        "filterConditions": {
+          "options": {
+            "caseSensitive": true
+          },
+          "conditions": [
+            {
+              "key": "Name",
+              "condition": "equal",
+              "value": "={{ $node[\"Google Contacts\"].json.organizations[0].name }}"
+            }
+          ]
+        },
+        "limit": 1
+      },
+      "name": "Search Notion Company",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Object.keys($json).length > 0 }}",
+              "value2": true,
+              "operation": "equals"
+            }
+          ]
+        }
+      },
+      "name": "Company Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "variableName": "notionCompanyId",
+        "value": "={{ $json.id }}"
+      },
+      "name": "Set Company ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": "45f6dc28-efe6-4f59-bfe6-cdfd9ae26957",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Name",
+              "value": "={{ $node[\"Google Contacts\"].json.organizations[0].name }}"
+            }
+          ]
+        }
+      },
+      "name": "Create Notion Company",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "variableName": "notionCompanyId",
+        "value": "={{ $json.id }}"
+      },
+      "name": "Set New Company ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "variableName": "notionCompanyId",
+        "value": ""
+      },
+      "name": "Set Empty Company ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Object.keys($node[\"Search Notion User\"].json).length > 0 }}",
+              "value2": true,
+              "operation": "equals"
+            }
+          ]
+        }
+      },
+      "name": "User Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+        "pageId": "={{ $node[\"Search Notion User\"].json.id }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "First Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].givenName : \"\" }}"
+            },
+            {
+              "key": "Last Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].familyName : \"\" }}"
+            },
+            {
+              "key": "Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].displayName : ($node[\"Google Contacts\"].json.organizations ? $node[\"Google Contacts\"].json.organizations[0].name : $node[\"Google Contacts\"].json.resourceName) }}"
+            },
+            {
+              "key": "Google contact Id",
+              "value": "={{ $node[\"Google Contacts\"].json.resourceName }}"
+            },
+            {
+              "key": "Job Title",
+              "value": "={{ $node[\"Google Contacts\"].json.organizations ? $node[\"Google Contacts\"].json.organizations[0].title : \"\" }}"
+            },
+            {
+              "key": "Phone",
+              "value": "={{ $node[\"Google Contacts\"].json.phoneNumbers ? $node[\"Google Contacts\"].json.phoneNumbers[0].value : \"\" }}"
+            },
+            {
+              "key": "Email",
+              "value": "={{ $node[\"Google Contacts\"].json.emailAddresses ? $node[\"Google Contacts\"].json.emailAddresses[0].value : \"\" }}"
+            },
+            {
+              "key": "Company",
+              "value": "={{ $vars.notionCompanyId }}"
+            }
+          ]
+        }
+      },
+      "name": "Update Notion Contact",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        500
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "variableName": "notionUserId",
+        "value": "={{ $node[\"Search Notion User\"].json.id }}"
+      },
+      "name": "Set User ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "databaseId": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "First Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].givenName : \"\" }}"
+            },
+            {
+              "key": "Last Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].familyName : \"\" }}"
+            },
+            {
+              "key": "Name",
+              "value": "={{ $node[\"Google Contacts\"].json.names ? $node[\"Google Contacts\"].json.names[0].displayName : ($node[\"Google Contacts\"].json.organizations ? $node[\"Google Contacts\"].json.organizations[0].name : $node[\"Google Contacts\"].json.resourceName) }}"
+            },
+            {
+              "key": "Google contact Id",
+              "value": "={{ $node[\"Google Contacts\"].json.resourceName }}"
+            },
+            {
+              "key": "Job Title",
+              "value": "={{ $node[\"Google Contacts\"].json.organizations ? $node[\"Google Contacts\"].json.organizations[0].title : \"\" }}"
+            },
+            {
+              "key": "Phone",
+              "value": "={{ $node[\"Google Contacts\"].json.phoneNumbers ? $node[\"Google Contacts\"].json.phoneNumbers[0].value : \"\" }}"
+            },
+            {
+              "key": "Email",
+              "value": "={{ $node[\"Google Contacts\"].json.emailAddresses ? $node[\"Google Contacts\"].json.emailAddresses[0].value : \"\" }}"
+            },
+            {
+              "key": "Company",
+              "value": "={{ $vars.notionCompanyId }}"
+            }
+          ]
+        }
+      },
+      "name": "Create Notion Contact",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        700
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "variableName": "notionUserId",
+        "value": "={{ $json.id }}"
+      },
+      "name": "Set New User ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get all memberships except 'myContacts' which is default\nconst memberships = $input.item.json.memberships || [];\nconst filteredMemberships = memberships.filter(m => \n  m.contactGroupMembership && \n  m.contactGroupMembership.contactGroupId !== 'myContacts'\n);\n\nreturn filteredMemberships;"
+      },
+      "name": "Process Memberships",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        900,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contactGroup",
+        "operation": "get",
+        "contactGroupId": "={{ $json.contactGroupMembership.contactGroupId }}"
+      },
+      "name": "Get Contact Group",
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        900
+      ],
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "1",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combineAllItems",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "name",
+              "field2": "name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Aggregate Groups",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "databaseId": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+        "pageId": "={{ $vars.notionUserId }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Lists",
+              "value": "={{ $json.map(item => item.name) }}"
+            }
+          ]
+        }
+      },
+      "name": "Update Contact Lists",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        900
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "2",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Google Contacts": {
+      "main": [
+        [
+          {
+            "node": "Search Notion User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Notion User": {
+      "main": [
+        [
+          {
+            "node": "Has Organization?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Organization?": {
+      "main": [
+        [
+          {
+            "node": "Search Notion Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Empty Company ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Notion Company": {
+      "main": [
+        [
+          {
+            "node": "Company Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company Exists?": {
+      "main": [
+        [
+          {
+            "node": "Set Company ID",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Notion Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Company ID": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Company": {
+      "main": [
+        [
+          {
+            "node": "Set New Company ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set New Company ID": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Empty Company ID": {
+      "main": [
+        [
+          {
+            "node": "User Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Exists?": {
+      "main": [
+        [
+          {
+            "node": "Update Notion Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Notion Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Notion Contact": {
+      "main": [
+        [
+          {
+            "node": "Set User ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set User ID": {
+      "main": [
+        [
+          {
+            "node": "Process Memberships",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Contact": {
+      "main": [
+        [
+          {
+            "node": "Set New User ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set New User ID": {
+      "main": [
+        [
+          {
+            "node": "Process Memberships",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Memberships": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Group",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Group": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Groups": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-05-13T00:00:00.000Z",
+  "versionId": "1"
+}
