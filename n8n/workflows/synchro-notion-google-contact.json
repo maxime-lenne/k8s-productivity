@@ -1,0 +1,372 @@
+{
+  "name": "Synchro Notion Google Contact",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "databaseItem",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+          "mode": "id"
+        },
+        "limit": 100,
+        "filters": {
+          "conditions": [
+            {
+              "key": "last_edited_time",
+              "condition": "after",
+              "valueType": "timeAgo",
+              "value": "1",
+              "valueUnit": "days"
+            }
+          ]
+        }
+      },
+      "id": "1a1f3d0c-e1e2-4a94-9e5a-2e913d5cee98",
+      "name": "Watch Notion Contacts",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process each Notion contact item\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const properties = item.json.properties;\n  \n  // Extract company ID if it exists\n  const companyId = properties.Company?.relation?.[0]?.id || null;\n  \n  // Create a standardized contact object\n  const contact = {\n    notionId: item.json.id,\n    firstName: properties.First_Name?.rich_text?.[0]?.plain_text || '',\n    lastName: properties.Last_Name?.rich_text?.[0]?.plain_text || '',\n    email: properties.Email?.email || '',\n    phone: properties.Phone?.phone_number || '',\n    googleContactId: properties.Google_contact_Id?.rich_text?.[0]?.plain_text || '',\n    jobTitle: properties.Job_Title?.select?.name || '',\n    companyId: companyId,\n    lists: properties.Lists?.multi_select?.map(item => item.name) || [],\n    linkedinProfile: properties.Linkedin_Profile?.url || ''\n  };\n  \n  results.push({\n    json: contact\n  });\n}\n\nreturn results;"
+      },
+      "id": "a2b3c4d5-e6f7-8g9h-0i1j-2k3l4m5n6o7p",
+      "name": "Process Notion Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.companyId !== null}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q",
+      "name": "Has Company?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "page",
+        "operation": "get",
+        "pageId": "={{$json.companyId}}"
+      },
+      "id": "c3d4e5f6-g7h8-9i0j-1k2l-3m4n5o6p7q8r",
+      "name": "Get Company",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add company name to contact\nconst item = $input.item;\nconst company = $input.first();\n\nif (company) {\n  item.json.companyName = company.json.properties.Name?.title?.[0]?.plain_text || '';\n}\n\nreturn item;"
+      },
+      "id": "d4e5f6g7-h8i9-0j1k-2l3m-4n5o6p7q8r9s",
+      "name": "Add Company Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e5f6g7h8-i9j0-1k2l-3m4n-5o6p7q8r9s0t",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.googleContactId}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "f6g7h8i9-j0k1-2l3m-4n5o-6p7q8r9s0t1u",
+      "name": "Has Google Contact ID?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "update",
+        "contactId": "={{$json.googleContactId}}",
+        "givenName": "={{$json.firstName}}",
+        "familyName": "={{$json.lastName}}",
+        "companyName": "={{$json.companyName || ''}}",
+        "jobTitle": "={{$json.jobTitle}}",
+        "emailAddresses": {
+          "emailAddressValues": [
+            {
+              "value": "={{$json.email}}"
+            }
+          ]
+        },
+        "phoneNumbers": {
+          "phoneNumberValues": [
+            {
+              "value": "={{$json.phone}}"
+            }
+          ]
+        },
+        "urls": {
+          "urlValues": [
+            {
+              "value": "={{$json.linkedinProfile}}",
+              "type": "profile"
+            }
+          ]
+        }
+      },
+      "id": "g7h8i9j0-k1l2-3m4n-5o6p-7q8r9s0t1u2v",
+      "name": "Update Google Contact",
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        200
+      ],
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "1",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contactGroup",
+        "operation": "getAll"
+      },
+      "id": "h8i9j0k1-l2m3-4n5o-6p7q-8r9s0t1u2v3w",
+      "name": "Get Contact Groups",
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        400
+      ],
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "1",
+          "name": "Google Contacts account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Match Notion lists with Google Contact Groups\nconst contact = $input.item;\nconst groups = $input.first();\n\nif (contact.json.lists && contact.json.lists.length > 0 && groups) {\n  const contactGroups = [];\n  \n  // Find matching group names\n  for (const list of contact.json.lists) {\n    const matchingGroup = groups.json.contactGroups.find(group => \n      group.name.toLowerCase() === list.toLowerCase());\n      \n    if (matchingGroup) {\n      contactGroups.push(matchingGroup.resourceName);\n    }\n  }\n  \n  contact.json.contactGroups = contactGroups;\n}\n\nreturn contact;"
+      },
+      "id": "i9j0k1l2-m3n4-5o6p-7q8r-9s0t1u2v3w4x",
+      "name": "Match Contact Groups",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "update",
+        "contactId": "={{$json.googleContactId}}",
+        "membershipInfo": "={{$json.contactGroups}}"
+      },
+      "id": "j0k1l2m3-n4o5-6p7q-8r9s-0t1u2v3w4x5y",
+      "name": "Update Contact Groups",
+      "type": "n8n-nodes-base.googleContacts",
+      "typeVersion": 1,
+      "position": [
+        2220,
+        400
+      ],
+      "credentials": {
+        "googleContactsOAuth2Api": {
+          "id": "1",
+          "name": "Google Contacts account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Watch Notion Contacts": {
+      "main": [
+        [
+          {
+            "node": "Process Notion Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Notion Data": {
+      "main": [
+        [
+          {
+            "node": "Has Company?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Company?": {
+      "main": [
+        [
+          {
+            "node": "Get Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Company": {
+      "main": [
+        [
+          {
+            "node": "Add Company Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Company Name": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Has Google Contact ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Google Contact ID?": {
+      "main": [
+        [
+          {
+            "node": "Update Google Contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Update Google Contact": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Groups": {
+      "main": [
+        [
+          {
+            "node": "Match Contact Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Contact Groups": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "notion"
+    },
+    {
+      "name": "google"
+    },
+    {
+      "name": "contacts"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-05-13T00:00:00.000Z",
+  "versionId": "1"
+}
