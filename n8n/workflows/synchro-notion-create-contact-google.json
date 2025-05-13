@@ -1,0 +1,683 @@
+{
+  "name": "Synchro notion -> create contact google",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "searchObjects",
+        "databaseId": {
+          "__rl": true,
+          "value": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+          "mode": "id"
+        },
+        "filterType": "complex",
+        "options": {
+          "limit": 10
+        },
+        "filters": {
+          "conditions": [
+            {
+              "type": "rich_text",
+              "property": "Google contact Id",
+              "rich_text": {
+                "is_empty": true
+              }
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-notion-search",
+      "name": "Notion Search",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        100,
+        300
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-api-credential",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-if-contacts-found",
+      "name": "IF Contacts Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getPage",
+        "pageId": "={{ $json.properties.Company?.relation[0]?.id }}"
+      },
+      "id": "a1b2c3d4-get-company",
+      "name": "Get Company",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-api-credential",
+          "name": "Notion account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Store company name from Notion\nconst companyName = $input.item(0)?.properties?.Name?.title[0]?.text?.content || '';\nreturn { companyName };"
+      },
+      "id": "a1b2c3d4-set-company-name",
+      "name": "Set Company Name",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Set empty company name if no company relation exists\nreturn { companyName: '' };"
+      },
+      "id": "a1b2c3d4-set-empty-company",
+      "name": "Set Empty Company",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "givenName": "={{ $json.properties['First Name']?.rich_text[0]?.plain_text || $json.id }}",
+        "familyName": "={{ $json.properties['Last Name']?.rich_text[0]?.plain_text || $json.id }}",
+        "birthday": "={{ $json.properties.Birthday?.date?.start }}",
+        "organization": {
+          "name": "={{ $json.companyName }}",
+          "title": "={{ $json.properties['Job Title']?.select?.name }}"
+        },
+        "additionalFields": {
+          "labels": "={{ $json.properties.Lists?.multi_select.map(item => item.name) }}"
+        }
+      },
+      "id": "a1b2c3d4-create-contact",
+      "name": "Create Google Contact",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Store Google contact ID\nreturn { googleContactId: $input.item(0).id };"
+      },
+      "id": "a1b2c3d4-store-contact-id",
+      "name": "Store Contact ID",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.properties.Email }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-if-has-email",
+      "name": "IF Has Email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "contactId": "={{ $json.googleContactId }}",
+        "updateFields": {
+          "emailAddresses": [
+            {
+              "value": "={{ $json.properties.Email }}",
+              "type": "work"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-update-email",
+      "name": "Update Email",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.properties.Phone }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-if-has-phone",
+      "name": "IF Has Phone",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "contactId": "={{ $json.googleContactId }}",
+        "updateFields": {
+          "phoneNumbers": [
+            {
+              "value": "={{ $json.properties.Phone }}",
+              "type": "work"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-update-phone",
+      "name": "Update Phone",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        400
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.properties['Linkedin Profile'] }}",
+              "operation": "exists"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-if-has-linkedin",
+      "name": "IF Has LinkedIn",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "contactId": "={{ $json.googleContactId }}",
+        "updateFields": {
+          "urls": [
+            {
+              "value": "={{ $json.properties['Linkedin Profile'] }}",
+              "type": "profile"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-update-linkedin",
+      "name": "Update LinkedIn",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        600
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "updatePage",
+        "pageId": "={{ $json.id }}",
+        "databaseId": {
+          "__rl": true,
+          "value": "c25a329d-9818-49b3-b09f-6b7f2405bf72",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Google contact Id",
+              "type": "richText",
+              "richText": [
+                {
+                  "text": {
+                    "content": "={{ $json.googleContactId }}"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-update-notion",
+      "name": "Update Notion Contact",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        800
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-api-credential",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.properties.Lists?.multi_select.length || 0 }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-if-has-lists",
+      "name": "IF Has Lists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contactGroup",
+        "operation": "getAll",
+        "returnAll": true
+      },
+      "id": "a1b2c3d4-get-contact-groups",
+      "name": "Get Contact Groups",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        2500,
+        200
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {
+          "cloneInputItems": true
+        }
+      },
+      "id": "a1b2c3d4-combine-lists-groups",
+      "name": "Combine Lists with Groups",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        2700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Match Notion list names with Google contact groups\nconst notionLists = $input.item(0).properties.Lists?.multi_select || [];\nconst googleGroups = $input.item(1).contactGroups || [];\n\nconst matchingGroups = [];\n\nfor (const list of notionLists) {\n  const matchingGroup = googleGroups.find(group => group.name === list.name);\n  if (matchingGroup) {\n    matchingGroups.push(matchingGroup.resourceName);\n  }\n}\n\nreturn {\n  googleContactId: $input.item(0).googleContactId,\n  matchingGroups\n};"
+      },
+      "id": "a1b2c3d4-match-groups",
+      "name": "Match Groups",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "contactId": "={{ $json.googleContactId }}",
+        "updateFields": {
+          "memberships": "={{ $json.matchingGroups.map(group => ({ contactGroupMembership: { contactGroupResourceName: group } })) }}"
+        }
+      },
+      "id": "a1b2c3d4-update-groups",
+      "name": "Update Contact Groups",
+      "type": "n8n-nodes-base.google",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        300
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "google-api-credential",
+          "name": "Google account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Notion Search": {
+      "main": [
+        [
+          {
+            "node": "IF Contacts Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Contacts Found": {
+      "main": [
+        [
+          {
+            "node": "Get Company",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Empty Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Company": {
+      "main": [
+        [
+          {
+            "node": "Set Company Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Company Name": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Empty Company": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Create Google Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Contact": {
+      "main": [
+        [
+          {
+            "node": "Store Contact ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Contact ID": {
+      "main": [
+        [
+          {
+            "node": "IF Has Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Email": {
+      "main": [
+        [
+          {
+            "node": "Update Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Has Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Email": {
+      "main": [
+        [
+          {
+            "node": "IF Has Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Phone": {
+      "main": [
+        [
+          {
+            "node": "Update Phone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Has LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Phone": {
+      "main": [
+        [
+          {
+            "node": "IF Has LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Update LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Notion Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Update Notion Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Notion Contact": {
+      "main": [
+        [
+          {
+            "node": "IF Has Lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Lists": {
+      "main": [
+        [
+          {
+            "node": "Get Contact Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Contact Groups": {
+      "main": [
+        [
+          {
+            "node": "Combine Lists with Groups",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combine Lists with Groups": {
+      "main": [
+        [
+          {
+            "node": "Match Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Groups": {
+      "main": [
+        [
+          {
+            "node": "Update Contact Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-05-13T00:00:00.000Z",
+  "versionId": "1"
+}
