@@ -1,0 +1,73 @@
+# Production environment configuration
+global:
+  environment: production
+  storageClass: sbs-default
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      baserow:
+        host: baserow.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+      n8n:
+        host: n8n.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: apps-tls-prod-cert
+        hosts:
+          - baserow.example.com
+          - n8n.example.com
+
+# Component-specific overrides for production
+postgresql:
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    size: 20Gi
+
+redis:
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
+      memory: "512Mi"
+      cpu: "400m"
+  persistence:
+    size: 5Gi
+
+baserow:
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "1000m"
+  persistence:
+    size: 20Gi
+
+n8n:
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    size: 20Gi

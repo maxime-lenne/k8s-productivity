@@ -1,0 +1,47 @@
+# PostgreSQL configuration
+image:
+  repository: postgres
+  tag: 15-alpine
+  pullPolicy: IfNotPresent
+
+# Storage configuration
+persistence:
+  enabled: true
+  storageClass: ""  # Use the storage class defined in the parent chart
+  size: 10Gi
+  accessMode: ReadWriteOnce
+
+# Resource limits and requests
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+
+# Security context
+securityContext:
+  fsGroup: 999
+
+# Database configuration
+database:
+  user: ""  # Will be set from parent chart
+  password: ""  # Will be set from parent chart
+  n8n:
+    dbName: ""  # Will be set from parent chart
+    user: ""  # Will be set from parent chart
+    password: ""  # Will be set from parent chart
+  baserow:
+    dbName: ""  # Will be set from parent chart
+    user: ""  # Will be set from parent chart
+    password: ""  # Will be set from parent chart
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5432
+
+# Init script configuration
+initScript:
+  enabled: true

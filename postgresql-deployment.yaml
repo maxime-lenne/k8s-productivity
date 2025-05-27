@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-script
+data:
+  init-database.sh: |
+    #!/bin/bash
+    set -e
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        CREATE DATABASE n8n_db;
+        CREATE USER n8n_user WITH PASSWORD '$N8N_DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON DATABASE n8n_db TO n8n_user;
+        ALTER DATABASE n8n_db OWNER TO n8n_user;
+        CREATE DATABASE baserow_db;
+        CREATE USER baserow_user WITH PASSWORD '$BASEROW_DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON DATABASE baserow_db TO baserow_user;
+        ALTER DATABASE baserow_db OWNER TO baserow_user;
+    EOSQL
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgresql-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: sbs-default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+      - name: postgresql
+        image: postgres:15-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: POSTGRES_PASSWORD
+        - name: N8N_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: N8N_DB_NAME
+        - name: N8N_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: N8N_DB_USER
+        - name: N8N_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: N8N_DB_PASSWORD
+        - name: BASEROW_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: BASEROW_DB_NAME
+        - name: BASEROW_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: BASEROW_DB_USER
+        - name: BASEROW_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-secret
+              key: BASEROW_DB_PASSWORD
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: postgresql-data
+      - name: init-script
+        configMap:
+          name: init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  selector:
+    app: postgresql
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP 

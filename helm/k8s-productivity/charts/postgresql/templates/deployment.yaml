@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-postgresql
+  labels:
+    app: postgresql
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        release: {{ .Release.Name }}
+    spec:
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+      - name: postgresql
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: POSTGRES_PASSWORD
+        - name: N8N_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: N8N_DB_NAME
+        - name: N8N_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: N8N_DB_USER
+        - name: N8N_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: N8N_DB_PASSWORD
+        - name: BASEROW_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_NAME
+        - name: BASEROW_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_USER
+        - name: BASEROW_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_PASSWORD
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: postgresql-data
+          mountPath: /var/lib/postgresql/data
+        {{- if .Values.initScript.enabled }}
+        - name: init-script
+          mountPath: /docker-entrypoint-initdb.d
+        {{- end }}
+      volumes:
+      - name: postgresql-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-postgresql-data
+      {{- if .Values.initScript.enabled }}
+      - name: init-script
+        configMap:
+          name: {{ .Release.Name }}-postgresql-init-script
+      {{- end }}

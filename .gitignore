@@ -1,0 +1,39 @@
+# Fichiers de secrets Kubernetes
+*-secret.yaml
+redis-secret.yaml
+postgresql-secret.yaml
+baserow-secret.yaml
+
+# Fichiers d'environnement
+.env
+.env.local
+.env.*.local
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers de logs
+*.log
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*~
+
+# Fichiers de sauvegarde
+*.bak
+*.backup
+
+# Dossiers Kubernetes locaux
+.kube/
+kubeconfig
+.aider*
+
+# scaleway
+scw-kubeconfig-k8s-productivity.yaml
+
+.idea/
+chatGPT/
+n8n/
+make/

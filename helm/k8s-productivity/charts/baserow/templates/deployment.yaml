@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-baserow
+  labels:
+    app: baserow
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: baserow
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: baserow
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: baserow
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+        env:
+        - name: DATABASE_TYPE
+          value: postgresql
+        - name: DATABASE_HOST
+          value: {{ .Values.database.host | default (printf "%s-postgresql" .Release.Name) }}
+        - name: DATABASE_PORT
+          value: {{ .Values.database.port | quote }}
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_NAME
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-postgresql-secret
+              key: BASEROW_DB_PASSWORD
+        - name: BASEROW_PUBLIC_URL
+          value: {{ .Values.application.publicUrl | default (printf "https://%s" (index .Values.global.ingress.hosts.baserow "host")) }}
+        - name: BASEROW_BACKEND_URL
+          value: {{ .Values.application.publicUrl | default (printf "https://%s" (index .Values.global.ingress.hosts.baserow "host")) }}
+        - name: BASEROW_FRONTEND_URL
+          value: {{ .Values.application.publicUrl | default (printf "https://%s" (index .Values.global.ingress.hosts.baserow "host")) }}
+        - name: DJANGO_SETTINGS_MODULE
+          value: baserow.config.settings.base
+        - name: WEBFRONTEND_URL
+          value: {{ .Values.application.publicUrl | default (printf "https://%s" (index .Values.global.ingress.hosts.baserow "host")) }}
+        - name: REDIS_HOST
+          value: {{ .Values.redis.host | default (printf "%s-redis" .Release.Name) }}
+        - name: REDIS_PORT
+          value: {{ .Values.redis.port | quote }}
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-redis-secret
+              key: REDIS_PASSWORD
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-baserow-secret
+              key: SECRET_KEY
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Release.Name }}-baserow-secret
+              key: JWT_SECRET
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        {{- if .Values.persistence.enabled }}
+        volumeMounts:
+        - name: baserow-data
+          mountPath: /baserow/data
+        {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+      - name: baserow-data
+        persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-baserow-data
+      {{- end }}

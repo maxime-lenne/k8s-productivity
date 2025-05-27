@@ -1,0 +1,34 @@
+# Redis configuration
+image:
+  repository: redis
+  tag: 6.2-alpine
+  pullPolicy: IfNotPresent
+
+# Storage configuration
+persistence:
+  enabled: true
+  storageClass: ""  # Use the storage class defined in the parent chart
+  size: 1Gi
+  accessMode: ReadWriteOnce
+
+# Resource limits and requests
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# Security context
+securityContext:
+  runAsUser: 999
+  fsGroup: 999
+
+# Redis configuration
+password: ""  # Will be set from parent chart
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 6379

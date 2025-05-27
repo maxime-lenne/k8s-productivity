@@ -1,0 +1,26 @@
+{{- if .Values.initScript.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-init-script
+  labels:
+    app: postgresql
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+  init-database.sh: |
+    #!/bin/bash
+    set -e
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        CREATE DATABASE {{ .Values.database.n8n.dbName | default "n8n_db" }};
+        CREATE USER {{ .Values.database.n8n.user | default "n8n_user" }} WITH PASSWORD '$N8N_DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON DATABASE {{ .Values.database.n8n.dbName | default "n8n_db" }} TO {{ .Values.database.n8n.user | default "n8n_user" }};
+        ALTER DATABASE {{ .Values.database.n8n.dbName | default "n8n_db" }} OWNER TO {{ .Values.database.n8n.user | default "n8n_user" }};
+        
+        CREATE DATABASE {{ .Values.database.baserow.dbName | default "baserow_db" }};
+        CREATE USER {{ .Values.database.baserow.user | default "baserow_user" }} WITH PASSWORD '$BASEROW_DB_PASSWORD';
+        GRANT ALL PRIVILEGES ON DATABASE {{ .Values.database.baserow.dbName | default "baserow_db" }} TO {{ .Values.database.baserow.user | default "baserow_user" }};
+        ALTER DATABASE {{ .Values.database.baserow.dbName | default "baserow_db" }} OWNER TO {{ .Values.database.baserow.user | default "baserow_user" }};
+    EOSQL
+{{- end }}
