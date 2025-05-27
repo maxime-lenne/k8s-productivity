@@ -5,6 +5,7 @@ postgresql-secret.yaml
 baserow-secret.yaml
 
 # Fichiers d'environnement
+.env.prod
 .env
 .env.local
 .env.*.local
@@ -28,12 +29,14 @@ Thumbs.db
 # Dossiers Kubernetes locaux
 .kube/
 kubeconfig
-.aider*
+
 
 # scaleway
 scw-kubeconfig-k8s-productivity.yaml
 
 .idea/
+.aider*
+
 chatGPT/
 n8n/
 make/

@@ -59,6 +59,46 @@ spec:
     secretName: apps-tls-local-cert
 EOF
 
+
+# Generate staging ingress configuration
+cat > apps-ingress-staging.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apps-ingress-staging
+  annotations:
+    cert-manager.io/cluster-issuer: ${CERT_MANAGER_STAGING_ISSUER}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: ${INGRESS_CLASS}
+  rules:
+  - host: ${BASEROW_STAGING_DOMAIN}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: baserow
+            port:
+              number: 80
+  - host: ${N8N_STAGING_DOMAIN}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: n8n
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - ${BASEROW_STAGING_DOMAIN}
+    - ${N8N_STAGING_DOMAIN}
+    secretName: apps-tls-staging-cert
+EOF
+
 # Generate production ingress configuration
 cat > apps-ingress-prod.yaml << EOF
 apiVersion: networking.k8s.io/v1
