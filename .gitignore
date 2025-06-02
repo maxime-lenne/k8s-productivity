@@ -32,11 +32,11 @@ kubeconfig
 
 
 # scaleway
-scw-kubeconfig-k8s-productivity.yaml
+/environments/*/kubeconfig-k8s-productivity*.yaml
 
 .idea/
 .aider*
 
 chatGPT/
-n8n/
+
 make/
