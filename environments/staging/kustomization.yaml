@@ -1,0 +1,66 @@
+# environments/staging/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base des manifests communs
+resources:
+  - ../../base
+  # Inclure le SealedSecret pour les secrets specifiques a staging
+  - secrets-staging.yaml
+
+# Définir le namespace pour cet environnement
+namespace: staging
+
+# Ici, nous ajouterons les patches ou les générateurs
+# pour les configurations spécifiques à l'environnement staging,
+# comme les domaines, les secrets, les limites de ressources, etc.
+patches:
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: apps-ingress-staging
+      - op: add
+        path: /spec/rules/0/host
+        value: baserow.staging.maxime-lenne.fr
+      - op: add
+        path: /spec/rules/1/host
+        value: n8n.staging.maxime-lenne.fr
+      - op: add
+        path: /metadata/annotations
+        value:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - baserow.staging.maxime-lenne.fr
+              - n8n.staging.maxime-lenne.fr
+            secretName: apps-tls-staging-cert
+    target:
+      kind: Ingress
+      name: apps-ingress
+
+configMapGenerator:
+  - name: app-config-staging
+    literals:
+      - POSTGRES_USER=postgres
+      - N8N_DB_NAME=n8n_db
+      - N8N_DB_USER=n8n_user
+      - BASEROW_DB_NAME=baserow_db
+      - BASEROW_DB_USER=baserow_user
+      - BASEROW_STAGING_DOMAIN=baserow.staging.maxime-lenne.fr
+      - N8N_STAGING_DOMAIN=n8n.staging.maxime-lenne.fr
+      - INGRESS_CLASS=nginx
+      - CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer
+      - CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
+      - SSL_REDIRECT=false
+      - FORCE_SSL_REDIRECT=false
+      - CERT_MANAGER_EMAIL=hello@maxime-lenne.fr
+      - PROD_DOMAIN=maxime-lenne.fr
+      - STAGING_DOMAIN=staging.maxime-lenne.fr
+
+# configMapGenerator:
+#   - name: staging-env-vars
+#     literals:
+#       - KEY=value

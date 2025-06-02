@@ -19,21 +19,6 @@ set -a
 source "$ENV_FILE"
 set +a
 
-# Generate ingress-nginx ConfigMap (global)
-cat > ingress-nginx-config.yaml << EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ingress-nginx-controller
-  namespace: default
-  labels:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
-data:
-  ssl-redirect: "${SSL_REDIRECT}"
-  force-ssl-redirect: "${FORCE_SSL_REDIRECT}"
-EOF
-
 # Generate ingress configuration for the specified environment
 if [ "$ENVIRONMENT" == "local" ]; then
 cat > "$TARGET_DIR/apps-ingress-local.yaml" << EOF

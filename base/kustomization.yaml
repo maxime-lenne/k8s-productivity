@@ -1,0 +1,34 @@
+# base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  # Baserow
+  - baserow/baserow-deployment.yaml
+  - baserow/baserow-secret.yaml
+  - baserow/baserow-service.yaml
+  - baserow/baserow-pvc.yaml
+
+  # N8N
+  - n8n/n8n-deployment.yaml
+  - n8n/n8n-secret.yaml
+  - n8n/n8n-service.yaml
+  - n8n/n8n-pvc.yaml
+
+  # PostgreSQL
+  - postgresql/postgresql-secret.yaml
+  - postgresql/postgresql-configmap.yaml
+  - postgresql/postgresql-pvc.yaml
+  - postgresql/postgresql-deployment.yaml
+  - postgresql/postgresql-service.yaml
+
+  # Redis
+  - redis/redis-secret.yaml
+  - redis/redis-deployment.yaml
+  - redis/redis-service.yaml
+
+  # Ingress Nginx Configuration
+  - ingress-nginx/ingress-nginx-configmap.yaml
+
+  # Application Ingress (Baserow & N8N)
+  - apps-ingress.yaml

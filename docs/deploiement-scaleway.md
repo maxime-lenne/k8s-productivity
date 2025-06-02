@@ -1,5 +1,7 @@
 # Déploiement & Scaleway
 
+Ce document détaille les étapes pour déployer l'environnement Kubernetes sur Scaleway, en utilisant **Kustomize** pour la gestion des configurations par environnement et **Sealed Secrets** pour les secrets.
+
 > Voir aussi : [Ingress, certificats & secrets](./ingress-certificats-secrets.md) | [FAQ, Dépannage & Maintenance](./faq-depannage-maintenance.md)
 
 ## Table des matières
@@ -14,10 +16,12 @@
 
 ## Prérequis
 
-- Kubernetes cluster opérationnel
-- `kubectl` configuré pour votre cluster
-- `helm` installé (pour Ingress-Nginx)
-- Pour Let's Encrypt : des noms de domaine pointant vers votre cluster
+- Cluster Kubernetes opérationnel sur Scaleway
+- `kubectl` configuré pour votre cluster Scaleway
+- `helm` installé (pour l'installation initiale d'Ingress-Nginx et Cert-Manager, si non inclus dans la base Kustomize)
+- `kubeseal` installé localement
+- Contrôleur Sealed Secrets installé dans votre cluster Scaleway (généralement dans le namespace `kube-system`)
+- Pour Let's Encrypt : des noms de domaine pointant vers l'IP publique de votre LoadBalancer Ingress-Nginx
 
 ## Configuration de kubectl pour Scaleway
 
@@ -177,12 +181,20 @@ export KUBECONFIG=./kubeconfig.yaml
 scw dns zone create domain=example.com
 ```
 
-2. Ajouter les enregistrements A pour vos domaines :
+2. Ajouter les enregistrements A pour vos domaines, pointant vers l'IP publique du LoadBalancer Ingress-Nginx. Remplacez `example.com` et les sous-domaines par les vôtres :
 ```bash
-# Récupérer l'IP du LoadBalancer
-export INGRESS_IP=$(kubectl get service ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+# Récupérer l'IP du LoadBalancer Ingress-Nginx
+export INGRESS_IP=$(kubectl get service ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
-# Ajouter les enregistrements A
+# Exemple d'ajout d'enregistrements A (à adapter)
+# Pour le domaine racine (si nécessaire)
+scw dns record create \
+  zone-id=<votre-zone-id> \
+  name=@ \
+  type=A \
+  data=$INGRESS_IP
+
+# Pour les sous-domaines (baserow, n8n, etc.)
 scw dns record create \
   zone-id=<votre-zone-id> \
   name=baserow \
@@ -203,123 +215,60 @@ scw dns record create \
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
-helm install ingress-nginx ingress-nginx/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
 ```
 
 ### 2. Cert-Manager (pour HTTPS)
 
-1. Installez cert-manager :
-   ```bash
-   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.3/cert-manager.yaml
-   ```
-
-2. Choisissez votre configuration de certificat :
-
-   a. Pour des certificats auto-signés (développement) :
-   ```bash
-   kubectl apply -f self-signed-issuer.yaml
-   kubectl apply -f apps-ingress-local.yaml
-   ```
-
-   b. Pour des certificats Let's Encrypt (production) :
-   1. Modifiez `letsencrypt-issuer.yaml` pour ajouter votre email
-   2. Modifiez `apps-ingress-prod.yaml` pour utiliser vos domaines
-   3. Appliquez la configuration :
-      ```bash
-      # D'abord testez avec l'environnement staging
-      kubectl apply -f letsencrypt-issuer.yaml
-      kubectl apply -f apps-ingress-prod.yaml
-      
-      # Une fois que tout fonctionne, passez en production :
-      # 1. Modifiez apps-ingress-prod.yaml pour utiliser "letsencrypt-prod"
-      # 2. Réappliquez la configuration
-      kubectl apply -f apps-ingress-prod.yaml
-      ```
-
-   ⚠️ Let's Encrypt a des limites de taux : utilisez d'abord l'environnement staging pour tester.
-
-### 3. PostgreSQL
-
+Installez cert-manager et ses CRDs :
 ```bash
-kubectl apply -f postgresql-deployment.yaml
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.3/cert-manager.yaml
 ```
 
-### 4. Redis
-
-```bash
-kubectl apply -f redis-deployment.yaml
-```
-
-### 5. N8N
-
-```bash
-kubectl apply -f n8n-deployment.yaml
-```
-
-### 6. Baserow
-
-```bash
-kubectl apply -f baserow-deployment.yaml
-```
+Installez également le contrôleur Sealed Secrets dans votre cluster, si ce n'est pas déjà fait. Voir le README pour les instructions d'installation avec Helm.
 
 ## Déploiement des applications
 
-1. Créer le namespace pour les applications :
-```bash
-kubectl create namespace productivity
-```
+Le déploiement des applications (PostgreSQL, Redis, N8N, Baserow) et de leurs configurations spécifiques à l'environnement est géré par Kustomize.
 
-2. Déployer les applications :
-```bash
-kubectl apply -f baserow-deployment.yaml -n productivity
-kubectl apply -f n8n-deployment.yaml -n productivity
-```
+Chaque environnement (staging, prod, etc.) a un répertoire dédié sous `environments/` contenant un fichier `kustomization.yaml` qui définit l'overlay pour cet environnement.
 
-3. Configurer les ingress :
-```bash
-# Générer les configurations d'ingress
-./generate-ingress-configs.sh
+Les variables spécifiques à l'environnement (domaines, noms d'utilisateurs de bases de données, etc.) sont gérées via des ConfigMaps générées par Kustomize. Les secrets sensibles (mots de passe, clés secrètes) sont gérés à l'aide de Sealed Secrets.
 
-# Appliquer les configurations
-kubectl apply -f ingress-nginx-config.yaml
-kubectl apply -f apps-ingress-prod.yaml
-```
+Pour déployer ou mettre à jour un environnement :
 
-### Configuration de cert-manager
+1.  Assurez-vous d'avoir un fichier de secrets *en clair* pour l'environnement, par exemple `environments/<environnement>/secrets-clear.yaml`. **Ce fichier NE doit PAS être commité dans Git !** Il doit contenir les variables sensibles spécifiques à cet environnement sous forme de manifeste Secret Kubernetes standard.
+    ```yaml
+    # Exemple de environments/staging/secrets-clear.yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: secrets-staging # Nom du Secret qui sera créé dans le cluster
+      namespace: staging
+    type: Opaque
+    stringData:
+      REDIS_PASSWORD: "votre_mdp_redis_staging"
+      POSTGRES_PASSWORD: "votre_mdp_postgres_staging"
+      # ... autres secrets sensibles ...
+    ```
 
-1. Installer cert-manager :
-```bash
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.13.0 \
-  --set installCRDs=true
-```
+2.  Utilisez `kubeseal` pour sceller ce fichier et créer le manifeste `SealedSecret` chiffré. Ce fichier `secrets-<environnement>.yaml` *peut* être commité dans Git.
+    ```bash
+    kubeseal -f environments/<environnement>/secrets-clear.yaml --namespace <environnement> -o yaml > environments/<environnement>/secrets-<environnement>.yaml
+    # Supprimez le fichier secrets-clear.yaml après le scellement !
+    rm environments/<environnement>/secrets-clear.yaml
+    ```
 
-2. Créer le ClusterIssuer pour Let's Encrypt :
-```bash
-kubectl apply -f letsencrypt-issuer.yaml
-```
+3.  Assurez-vous que le fichier `environments/<environnement>/kustomization.yaml` est correctement configuré pour inclure le `SealedSecret` (via la section `resources`) et générer la ConfigMap (via `configMapGenerator`) avec les variables non sensibles spécifiques à l'environnement.
 
-### Vérification du déploiement
+4.  Appliquez la configuration de l'environnement à votre cluster en utilisant la commande `kubectl apply -k` :
+    ```bash
+    kubectl apply -k environments/<environnement>/
+    ```
 
-1. Vérifier l'état des pods :
-```bash
-kubectl get pods -n productivity
-```
+    Remplacez `<environnement>` par le nom du répertoire de l'environnement (par exemple, `staging`).
 
-2. Vérifier les certificats :
-```bash
-kubectl get certificates -n productivity
-```
-
-3. Tester l'accès aux applications :
-```bash
-curl -k https://baserow.example.com
-curl -k https://n8n.example.com
-```
+Les ressources définies dans `base/` seront appliquées, patchées selon l'overlay de l'environnement, le `SealedSecret` sera déchiffré par le contrôleur Sealed Secrets dans le cluster pour créer un Secret standard, et la ConfigMap sera générée.
 
 ## Maintenance
 
@@ -342,22 +291,4 @@ kubectl rollout restart deployment/n8n -n productivity
 
 ## Gestion multi-environnement
 
-Pour chaque environnement (local, staging, prod), créez un fichier `.env` dédié à partir de `.env.example` :
-
-```bash
-cp .env.example .env.local
-cp .env.example .env.staging
-cp .env.example .env.prod
-```
-
-Modifiez les variables selon l'environnement (domaines, secrets, etc.).
-
-Pour générer et appliquer la configuration pour un environnement donné :
-```bash
-./generate-secrets.sh staging
-./generate-ingress-configs.sh staging
-kubectl apply -f base/ingress-nginx/ingress-nginx-config.yaml
-kubectl apply -f environments/staging/apps-ingress-staging.yaml
-```
-
-Idem pour local ou prod, en adaptant l'argument et le fichier d'ingress. 
+Cette section est couverte par l'utilisation de Kustomize. Voir [Gestion multi-environnement avec Kustomize](#gestion-multi-environnement-avec-kustomize) dans le README principal. 

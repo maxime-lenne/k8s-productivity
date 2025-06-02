@@ -1,0 +1,24 @@
+# environments/local/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base des manifests communs
+resources:
+  - ../../base
+
+# Définir le namespace pour cet environnement
+namespace: default
+
+# Ici, nous ajouterons plus tard des patches ou des générateurs
+# pour les configurations spécifiques à l'environnement local,
+# comme les variables d'environnement, les limites de ressources, etc.
+# patches:
+#   - patch.yaml
+# configMapGenerator:
+#   - name: local-env-vars
+#     literals:
+#       - KEY=value
+# secretGenerator:
+#   - name: local-secrets
+#     literals:
+#       - SECRET_KEY=supersecret

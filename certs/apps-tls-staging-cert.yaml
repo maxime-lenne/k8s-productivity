@@ -9,7 +9,7 @@ spec:
   subject:
     organizations:
       - Maxime
-  commonName: ${STAGING_DOMAIN}
+  commonName: maxime-lenne.fr
   isCA: false
   privateKey:
     algorithm: RSA
@@ -19,8 +19,8 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - ${BASEROW_STAGING_DOMAIN}
-    - ${N8N_STAGING_DOMAIN}
+    - baserow.staging.maxime-lenne.fr
+    - n8n.staging.maxime-lenne.fr
   issuerRef:
     name: selfsigned-issuer
     kind: ClusterIssuer

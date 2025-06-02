@@ -1,5 +1,7 @@
 # FAQ, Dépannage & Maintenance
 
+Ce document fournit des foires aux questions (FAQ), des conseils de dépannage et des procédures de maintenance pour l'environnement Kubernetes, en tenant compte de l'utilisation de **Kustomize** pour la gestion des configurations et de **Sealed Secrets** pour les secrets.
+
 > Voir aussi : [Déploiement & Scaleway](./deploiement-scaleway.md) | [Ingress, certificats & secrets](./ingress-certificats-secrets.md)
 
 ## Table des matières
@@ -9,7 +11,6 @@
   - [Problèmes courants](#problèmes-courants)
   - [Problèmes spécifiques à PostgreSQL sur Scaleway](#problèmes-spécifiques-à-postgresql-sur-scaleway)
   - [Problèmes avec Let's Encrypt](#problèmes-avec-lets-encrypt)
-- [Gestion multi-environnement](#gestion-multi-environnement)
 
 ## FAQ
 
@@ -41,17 +42,20 @@ kubectl logs -f deployment/<nom-du-service>
 
 ### Suppression complète de l'environnement
 
-Pour supprimer tous les composants :
+Pour supprimer tous les composants d'un environnement géré par Kustomize, la méthode recommandée est d'utiliser `kubectl delete -k` :
+
+```bash
+kubectl delete -k environments/<environnement>/
+```
+
+Remplacez `<environnement>` par le nom du répertoire de l'environnement (par exemple, `staging`).
+
+Vous pouvez également supprimer les ressources individuellement si nécessaire, mais veillez à la cohérence :
 ```bash
 kubectl delete deployment baserow n8n postgresql redis
 kubectl delete service baserow n8n postgresql redis
-kubectl delete pvc --all
-kubectl delete configmap postgresql-config init-script
-kubectl delete secret postgresql-secret redis-secret baserow-secret apps-tls-cert
-kubectl delete certificate apps-tls-cert
-kubectl delete clusterissuer selfsigned-issuer
-helm uninstall ingress-nginx
-kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.3/cert-manager.yaml
+# ... autres ressources comme PVCs, ConfigMaps, Secrets (incluant les SealedSecrets), etc.
+# Soyez prudent lors de la suppression individuelle, surtout avec les PVCs si vous voulez conserver les données.
 ```
 
 ## Dépannage
@@ -142,30 +146,15 @@ kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download
    # Vérifier les logs de connexion
    kubectl logs -l app=postgresql
    
-   # Vérifier les variables d'environnement
+   # Vérifier les variables d'environnement injectées dans le pod
    kubectl describe pod <postgresql-pod>
    ```
 
+   Les variables d'environnement pour la connexion à PostgreSQL (comme `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`) sont lues à partir de ConfigMaps et Secrets gérés par Kustomize et Sealed Secrets. Vérifiez que les clés et les noms des Secrets/ConfigMaps référencés dans le déploiement de base (`base/postgresql/postgresql-deployment.yaml`) correspondent bien aux noms des ressources générées/déchiffrées dans l'environnement cible (comme défini dans `environments/<environnement>/kustomization.yaml`).
+
    Solutions possibles :
-   - Vérifier que les variables d'environnement sont correctement définies :
-     ```yaml
-     env:
-     - name: POSTGRES_USER
-       valueFrom:
-         secretKeyRef:
-           name: postgresql-secret
-           key: username
-     - name: POSTGRES_PASSWORD
-       valueFrom:
-         secretKeyRef:
-           name: postgresql-secret
-           key: password
-     - name: POSTGRES_DB
-       valueFrom:
-         secretKeyRef:
-           name: postgresql-secret
-           key: database
-     ```
+   - Vérifier les valeurs dans la ConfigMap et le Secret générés par Kustomize/Sealed Secrets pour l'environnement.
+   - S'assurer que les références (`valueFrom.secretKeyRef`, `valueFrom.configMapKeyRef`) dans le déploiement de base sont correctes.
 
 4. **Problème de redémarrage** :
    ```bash
@@ -237,13 +226,4 @@ kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download
 
 ## Gestion multi-environnement
 
-Pour changer d'environnement (local, staging, prod), il suffit de générer les secrets et ingress avec l'argument correspondant :
-
-```bash
-./generate-secrets.sh staging
-./generate-ingress-configs.sh staging
-```
-
-Vérifiez que le fichier `.env.staging` (ou `.env.local`, `.env.prod`) est bien présent et adapté à votre environnement. Les scripts chargeront automatiquement le bon fichier.
-
-En cas de problème, vérifiez les logs des scripts et la présence des fichiers d'environnement. 
+La gestion multi-environnement est assurée par **Kustomize**. Référez-vous à la section dédiée dans le [README.md](../README.md#gestion-multi-environnement-avec-kustomize) principal pour plus de détails sur la structure et le fonctionnement des overlays. 

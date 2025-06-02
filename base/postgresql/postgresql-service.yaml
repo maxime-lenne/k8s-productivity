@@ -11,4 +11,6 @@ spec:
       protocol: TCP
       name: postgresql
   selector:
-    app: postgresql 
+    app: postgresql
+    apiVersion: v1
+  type: ClusterIP 

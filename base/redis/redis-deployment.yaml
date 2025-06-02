@@ -31,14 +31,3 @@ spec:
             secretKeyRef:
               name: redis-secret
               key: REDIS_PASSWORD
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-spec:
-  selector:
-    app: redis
-  ports:
-  - port: 6379
-    targetPort: 6379 

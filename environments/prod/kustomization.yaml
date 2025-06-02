@@ -1,0 +1,24 @@
+# environments/prod/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base des manifests communs
+resources:
+  - ../../base
+
+# Définir le namespace pour cet environnement
+namespace: prod
+
+# Ici, nous ajouterons les patches ou les générateurs
+# pour les configurations spécifiques à l'environnement de production,
+# comme les domaines, les secrets, les limites de ressources, les stratégies de déploiement, etc.
+# patches:
+#   - patch-prod.yaml
+# configMapGenerator:
+#   - name: prod-env-vars
+#     literals:
+#       - KEY=value
+# secretGenerator:
+#   - name: prod-secrets
+#     literals:
+#       - SECRET_KEY=supersecret-prod

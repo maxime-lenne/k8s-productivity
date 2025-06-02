@@ -5,7 +5,7 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: ${CERT_MANAGER_EMAIL}  # Variable d'environnement à définir dans .env
+    email: hello@maxime-lenne.fr
     privateKeySecretRef:
       name: letsencrypt-staging
     solvers:
@@ -20,7 +20,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: ${CERT_MANAGER_EMAIL}  # Variable d'environnement à définir dans .env
+    email: hello@maxime-lenne.fr
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
