@@ -9,6 +9,7 @@ baserow-secret.yaml
 .env.staging
 .env.local
 .env
+*secrets-clear.yaml
 
 # Fichiers système
 .DS_Store
