@@ -5,6 +5,7 @@
 - [Structure des fichiers](#structure-des-fichiers)
 - [Démarrage rapide](#démarrage-rapide)
 - [Documentation détaillée](#documentation-détaillée)
+- [Gestion multi-environnement](#gestion-multi-environnement)
 
 Ce projet permet de déployer un environnement complet (Ingress-Nginx, PostgreSQL, Redis, N8N, Baserow) sur Kubernetes.
 
@@ -85,4 +86,32 @@ k8s-productivity/
 └── ...
 ```
 
-Voir la documentation pour plus de détails sur chaque dossier. 
+Voir la documentation pour plus de détails sur chaque dossier.
+
+## Gestion multi-environnement
+
+Ce projet utilise un fichier `.env` spécifique à chaque environnement :
+- `.env.local` pour l'environnement local
+- `.env.staging` pour l'environnement de staging
+- `.env.prod` pour l'environnement de production
+
+**Exemple :**
+```bash
+cp .env.example .env.local
+cp .env.example .env.staging
+cp .env.example .env.prod
+# Modifiez chaque fichier selon vos besoins
+```
+
+Les scripts de génération prennent l'environnement en argument :
+```bash
+./generate-secrets.sh local
+./generate-secrets.sh staging
+./generate-secrets.sh prod
+
+./generate-ingress-configs.sh local
+./generate-ingress-configs.sh staging
+./generate-ingress-configs.sh prod
+```
+
+Chaque script chargera automatiquement le bon fichier `.env`. 

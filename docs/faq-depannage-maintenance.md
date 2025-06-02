@@ -9,6 +9,7 @@
   - [Problèmes courants](#problèmes-courants)
   - [Problèmes spécifiques à PostgreSQL sur Scaleway](#problèmes-spécifiques-à-postgresql-sur-scaleway)
   - [Problèmes avec Let's Encrypt](#problèmes-avec-lets-encrypt)
+- [Gestion multi-environnement](#gestion-multi-environnement)
 
 ## FAQ
 
@@ -233,3 +234,16 @@ kubectl delete -f https://github.com/cert-manager/cert-manager/releases/download
 3. Limites de taux atteintes :
    - Utilisez l'environnement staging pour les tests
    - Attendez que les limites soient réinitialisées pour la production 
+
+## Gestion multi-environnement
+
+Pour changer d'environnement (local, staging, prod), il suffit de générer les secrets et ingress avec l'argument correspondant :
+
+```bash
+./generate-secrets.sh staging
+./generate-ingress-configs.sh staging
+```
+
+Vérifiez que le fichier `.env.staging` (ou `.env.local`, `.env.prod`) est bien présent et adapté à votre environnement. Les scripts chargeront automatiquement le bon fichier.
+
+En cas de problème, vérifiez les logs des scripts et la présence des fichiers d'environnement. 

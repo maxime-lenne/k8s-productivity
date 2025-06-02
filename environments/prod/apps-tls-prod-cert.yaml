@@ -9,7 +9,7 @@ spec:
   subject:
     organizations:
       - Maxime
-  commonName: maxime-lenne.fr
+  commonName: ${PROD_DOMAIN}
   isCA: false
   privateKey:
     algorithm: RSA
@@ -19,8 +19,8 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - baserow.maxime-lenne.fr
-    - n8n.maxime-lenne.fr
+    - ${BASEROW_PROD_DOMAIN}
+    - ${N8N_PROD_DOMAIN}
   issuerRef:
     name: selfsigned-issuer
     kind: ClusterIssuer

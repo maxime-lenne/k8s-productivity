@@ -10,6 +10,7 @@
 - [Installation des composants](#installation-des-composants)
 - [Déploiement des applications](#déploiement-des-applications)
 - [Maintenance](#maintenance)
+- [Gestion multi-environnement](#gestion-multi-environnement)
 
 ## Prérequis
 
@@ -337,4 +338,26 @@ Pour redémarrer les applications :
 ```bash
 kubectl rollout restart deployment/baserow -n productivity
 kubectl rollout restart deployment/n8n -n productivity
-``` 
+```
+
+## Gestion multi-environnement
+
+Pour chaque environnement (local, staging, prod), créez un fichier `.env` dédié à partir de `.env.example` :
+
+```bash
+cp .env.example .env.local
+cp .env.example .env.staging
+cp .env.example .env.prod
+```
+
+Modifiez les variables selon l'environnement (domaines, secrets, etc.).
+
+Pour générer et appliquer la configuration pour un environnement donné :
+```bash
+./generate-secrets.sh staging
+./generate-ingress-configs.sh staging
+kubectl apply -f base/ingress-nginx/ingress-nginx-config.yaml
+kubectl apply -f environments/staging/apps-ingress-staging.yaml
+```
+
+Idem pour local ou prod, en adaptant l'argument et le fichier d'ingress. 

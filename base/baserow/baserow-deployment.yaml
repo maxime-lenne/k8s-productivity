@@ -52,15 +52,15 @@ spec:
               name: postgresql-secret
               key: BASEROW_DB_PASSWORD
         - name: BASEROW_PUBLIC_URL
-          value: https://baserow.maxime-lenne.fr
+          value: https://${BASEROW_PROD_DOMAIN}
         - name: BASEROW_BACKEND_URL
-          value: https://baserow.maxime-lenne.fr
+          value: https://${BASEROW_PROD_DOMAIN}
         - name: BASEROW_FRONTEND_URL
-          value: https://baserow.maxime-lenne.fr
+          value: https://${BASEROW_PROD_DOMAIN}
         - name: DJANGO_SETTINGS_MODULE
           value: baserow.config.settings.base
         - name: WEBFRONTEND_URL
-          value: https://baserow.maxime-lenne.fr
+          value: https://${BASEROW_PROD_DOMAIN}
         - name: REDIS_HOST
           value: redis
         - name: REDIS_PORT

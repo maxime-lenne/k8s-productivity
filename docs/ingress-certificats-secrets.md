@@ -11,6 +11,7 @@
 - [Configuration globale (ConfigMap)](#configuration-globale-configmap)
 - [Certificats](#certificats)
 - [Secrets](#secrets)
+- [Gestion multi-environnement](#gestion-multi-environnement)
 
 ## Configuration des secrets
 
@@ -135,4 +136,34 @@ Pour l'environnement local, des certificats auto-signés sont utilisés via un i
 
 ## Secrets
 
-Les secrets sont générés à partir du script `generate-secrets.sh` et appliqués dans le cluster. Ils ne doivent jamais être versionnés dans Git. 
+Les secrets sont générés à partir du script `generate-secrets.sh` et appliqués dans le cluster. Ils ne doivent jamais être versionnés dans Git.
+
+## Gestion multi-environnement
+
+Pour chaque environnement (local, staging, prod), créez un fichier `.env` dédié :
+- `.env.local`
+- `.env.staging`
+- `.env.prod`
+
+Copiez le modèle :
+```bash
+cp .env.example .env.local
+cp .env.example .env.staging
+cp .env.example .env.prod
+```
+
+Modifiez les variables selon l'environnement (domaines, secrets, émetteurs de certificats, etc.).
+
+Pour générer les secrets et ingress pour un environnement donné :
+```bash
+./generate-secrets.sh local
+./generate-ingress-configs.sh local
+
+./generate-secrets.sh staging
+./generate-ingress-configs.sh staging
+
+./generate-secrets.sh prod
+./generate-ingress-configs.sh prod
+```
+
+Chaque script chargera automatiquement le bon fichier `.env`. 

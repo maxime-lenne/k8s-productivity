@@ -1,13 +1,19 @@
 #!/bin/bash
 
-if [ ! -f .env ]; then
-    echo "Error: .env file not found"
-    echo "Please copy .env.example to .env and update the values"
+# Usage: ./generate-secrets.sh [local|staging|prod]
+ENVIRONMENT=${1:-local}
+ENV_FILE=".env.$ENVIRONMENT"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Error: $ENV_FILE file not found"
+    echo "Veuillez copier .env.example en $ENV_FILE et adapter les valeurs."
     exit 1
 fi
 
 # Load environment variables
-source .env
+set -a
+source "$ENV_FILE"
+set +a
 
 # Generate Redis secret
 cat << EOF > redis-secret.yaml

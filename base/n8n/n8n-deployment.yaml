@@ -56,7 +56,7 @@ spec:
               name: postgresql-secret
               key: N8N_DB_PASSWORD
         - name: N8N_HOST
-          value: "n8n.staging.maxime-lenne.fr"
+          value: "${N8N_STAGING_DOMAIN}"
         - name: N8N_PORT
           value: "5678"
         - name: N8N_PROTOCOL
@@ -68,7 +68,7 @@ spec:
         - name: N8N_DIAGNOSTICS_ENABLED
           value: "false"
         - name: WEBHOOK_URL
-          value: "https://n8n.staging.maxime-lenne.fr"
+          value: "https://${N8N_STAGING_DOMAIN}"
         - name: N8N_HIRING_BANNER_ENABLED
           value: "false"
         - name: N8N_EMAIL_MODE

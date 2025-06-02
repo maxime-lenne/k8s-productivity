@@ -1,8 +1,18 @@
 #!/bin/bash
 
+# Usage: ./generate-ingress-configs.sh [local|staging|prod]
+ENVIRONMENT=${1:-local}
+ENV_FILE=".env.$ENVIRONMENT"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "Error: $ENV_FILE file not found"
+    echo "Veuillez copier .env.example en $ENV_FILE et adapter les valeurs."
+    exit 1
+fi
+
 # Load environment variables
 set -a
-source .env
+source "$ENV_FILE"
 set +a
 
 # Generate ingress-nginx ConfigMap
