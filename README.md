@@ -50,7 +50,7 @@ Voir la section dédiée ci-dessous pour l'organisation des dossiers et fichiers
 - [Déploiement & Scaleway](docs/deploiement-scaleway.md)
     - [Prérequis](docs/deploiement-scaleway.md#prérequis)
     - [Configuration de kubectl pour Scaleway](docs/deploiement-scaleway.md#configuration-de-kubectl-pour-scaleway)
-    - [Déploiement sur Scaleway](docs/deploiement-scaleway.md#déploiement-sur-scaleway)
+    - [Création de l'environement sur Scaleway](docs/deploiement-scaleway.md#création-de-lenvironement-sur-scaleway)
     - [Configuration du DNS](docs/deploiement-scaleway.md#configuration-du-dns)
     - [Installation des composants](docs/deploiement-scaleway.md#installation-des-composants)
     - [Déploiement des applications](docs/deploiement-scaleway.md#déploiement-des-applications)
