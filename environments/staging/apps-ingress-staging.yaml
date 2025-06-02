@@ -3,13 +3,12 @@ kind: Ingress
 metadata:
   name: apps-ingress-staging
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-staging
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    kubernetes.io/ingress.class: "nginx"
 spec:
   ingressClassName: nginx
   rules:
-  - host: ${BASEROW_STAGING_DOMAIN}
+  - host: baserow.staging.maxime-lenne.fr
     http:
       paths:
       - path: /
@@ -19,7 +18,7 @@ spec:
             name: baserow
             port:
               number: 80
-  - host: ${N8N_STAGING_DOMAIN}
+  - host: n8n.staging.maxime-lenne.fr
     http:
       paths:
       - path: /
@@ -31,6 +30,6 @@ spec:
               number: 80
   tls:
   - hosts:
-    - ${BASEROW_STAGING_DOMAIN}
-    - ${N8N_STAGING_DOMAIN}
+    - baserow.staging.maxime-lenne.fr
+    - n8n.staging.maxime-lenne.fr
     secretName: apps-tls-staging-cert

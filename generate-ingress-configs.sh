@@ -3,6 +3,7 @@
 # Usage: ./generate-ingress-configs.sh [local|staging|prod]
 ENVIRONMENT=${1:-local}
 ENV_FILE=".env.$ENVIRONMENT"
+TARGET_DIR="environments/$ENVIRONMENT"
 
 if [ ! -f "$ENV_FILE" ]; then
     echo "Error: $ENV_FILE file not found"
@@ -10,12 +11,15 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# Créer le dossier cible si besoin
+mkdir -p "$TARGET_DIR"
+
 # Load environment variables
 set -a
 source "$ENV_FILE"
 set +a
 
-# Generate ingress-nginx ConfigMap
+# Generate ingress-nginx ConfigMap (global)
 cat > ingress-nginx-config.yaml << EOF
 apiVersion: v1
 kind: ConfigMap
@@ -30,8 +34,9 @@ data:
   force-ssl-redirect: "${FORCE_SSL_REDIRECT}"
 EOF
 
-# Generate local ingress configuration
-cat > apps-ingress-local.yaml << EOF
+# Generate ingress configuration for the specified environment
+if [ "$ENVIRONMENT" == "local" ]; then
+cat > "$TARGET_DIR/apps-ingress-local.yaml" << EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -68,10 +73,10 @@ spec:
     - ${N8N_LOCAL_DOMAIN}
     secretName: apps-tls-local-cert
 EOF
+echo "Fichier d'ingress pour l'environnement local généré dans $TARGET_DIR/apps-ingress-local.yaml"
 
-
-# Generate staging ingress configuration
-cat > apps-ingress-staging.yaml << EOF
+elif [ "$ENVIRONMENT" == "staging" ]; then
+cat > "$TARGET_DIR/apps-ingress-staging.yaml" << EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -108,9 +113,10 @@ spec:
     - ${N8N_STAGING_DOMAIN}
     secretName: apps-tls-staging-cert
 EOF
+echo "Fichier d'ingress pour l'environnement staging généré dans $TARGET_DIR/apps-ingress-staging.yaml"
 
-# Generate production ingress configuration
-cat > apps-ingress-prod.yaml << EOF
+elif [ "$ENVIRONMENT" == "prod" ]; then
+cat > "$TARGET_DIR/apps-ingress-prod.yaml" << EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -137,7 +143,7 @@ spec:
       - path: /
         pathType: Prefix
         backend:
-          service:
+          service: # TODO: check if service name is correct
             name: n8n
             port:
               number: 80
@@ -147,15 +153,13 @@ spec:
     - ${N8N_PROD_DOMAIN}
     secretName: apps-tls-prod-cert
 EOF
+echo "Fichier d'ingress pour l'environnement prod généré dans $TARGET_DIR/apps-ingress-prod.yaml"
 
-# Apply configurations
-echo "Applying ingress-nginx ConfigMap..."
-kubectl apply -f ingress-nginx-config.yaml
+fi
 
-echo "Applying ingress configurations..."
-kubectl apply -f apps-ingress-local.yaml -f apps-ingress-prod.yaml
-
-echo "Restarting ingress-nginx controller to apply ConfigMap changes..."
-kubectl rollout restart deployment ingress-nginx-controller
-
-echo "Configurations applied successfully!" 
+# Instructions pour appliquer la configuration
+echo "N'oublie pas d'appliquer le ConfigMap ingress-nginx-controller et le fichier d'ingress généré:"
+echo "kubectl apply -f ingress-nginx-config.yaml"
+echo "kubectl apply -f $TARGET_DIR/apps-ingress-$ENVIRONMENT.yaml"
+echo "Redémarre le contrôleur ingress-nginx si tu as modifié la ConfigMap:"
+echo "kubectl rollout restart deployment ingress-nginx-controller" 
