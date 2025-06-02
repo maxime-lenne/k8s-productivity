@@ -5,7 +5,7 @@
 ## Table des matières
 - [Prérequis](#prérequis)
 - [Configuration de kubectl pour Scaleway](#configuration-de-kubectl-pour-scaleway)
-- [Déploiement sur Scaleway](#déploiement-sur-scaleway)
+- [Création de l'environement sur Scaleway](#création-de-lenvironement-sur-scaleway)
 - [Configuration du DNS](#configuration-du-dns)
 - [Installation des composants](#installation-des-composants)
 - [Déploiement des applications](#déploiement-des-applications)
@@ -59,7 +59,7 @@ export KUBECONFIG=./kubeconfig.yaml
 echo 'export KUBECONFIG=./kubeconfig.yaml' >> ~/.bashrc
 ```
 
-### 3.1 Configuration de k9s
+### 3.1 Configuration de k9s (optionel)
 
 k9s utilise automatiquement la configuration de kubectl, donc il n'y a pas de configuration supplémentaire nécessaire.
 
@@ -131,7 +131,7 @@ scw k8s kubeconfig reset <nom-du-cluster>
 scw k8s cluster get <nom-du-cluster>
 ```
 
-## Déploiement sur Scaleway
+## Création de l'environement sur Scaleway
 
 ### Prérequis
 
@@ -320,7 +320,7 @@ curl -k https://baserow.example.com
 curl -k https://n8n.example.com
 ```
 
-### Maintenance
+## Maintenance
 
 Pour mettre à jour les applications :
 ```bash
