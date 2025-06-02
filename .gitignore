@@ -6,9 +6,9 @@ baserow-secret.yaml
 
 # Fichiers d'environnement
 .env.prod
-.env
+.env.staging
 .env.local
-.env.*.local
+.env
 
 # Fichiers système
 .DS_Store
