@@ -33,4 +33,4 @@ data:
 
     if [ -n "$BASEROW_DB_NAME" ]; then
         create_database $BASEROW_DB_NAME $BASEROW_DB_USER $BASEROW_DB_PASSWORD
-    fi 
+    fi

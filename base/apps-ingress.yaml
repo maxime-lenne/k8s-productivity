@@ -23,4 +23,4 @@ spec:
               service:
                 name: n8n
                 port:
-                  number: 80 
+                  number: 80

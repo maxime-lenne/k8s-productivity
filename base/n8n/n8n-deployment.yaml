@@ -88,7 +88,7 @@ spec:
               value: "true"
           envFrom:
             - configMapRef:
-                name: app-config # Ce nom sera résolu par Kustomize
+                name: app-config  # Ce nom sera résolu par Kustomize
           resources:
             requests:
               memory: "256Mi"
