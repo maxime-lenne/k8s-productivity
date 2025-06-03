@@ -67,7 +67,7 @@ spec:
                 secretKeyRef:
                   name: postgresql-secret
                   key: N8N_DB_PASSWORD
-            # Variables d'environnement individuelles 
+            # Variables d'environnement individuelles
             # (celles qui ne viennent PAS de app-config)
             - name: N8N_PORT
               value: "5678"
