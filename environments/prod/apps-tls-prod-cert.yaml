@@ -11,11 +11,7 @@ spec:
   subject:
     organizations:
       - Maxime
-  commonName:
-    valueFrom:
-      configMapKeyRef:
-        name: app-config-prod
-        key: PROD_DOMAIN
+  commonName: baserow.maxime-lenne.fr
   isCA: false
   privateKey:
     algorithm: RSA
@@ -25,14 +21,8 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - valueFrom:
-        configMapKeyRef:
-          name: app-config-prod
-          key: BASEROW_PROD_DOMAIN
-    - valueFrom:
-        configMapKeyRef:
-          name: app-config-prod
-          key: N8N_PROD_DOMAIN
+    - baserow.maxime-lenne.fr
+    - n8n.maxime-lenne.fr
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer

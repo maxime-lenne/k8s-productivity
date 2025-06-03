@@ -6,7 +6,8 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - http:
+    - host: BASEROW_DOMAIN_PLACEHOLDER
+      http:
         paths:
           - path: /
             pathType: Prefix
@@ -15,7 +16,8 @@ spec:
                 name: baserow
                 port:
                   number: 80
-    - http:
+    - host: N8N_DOMAIN_PLACEHOLDER
+      http:
         paths:
           - path: /
             pathType: Prefix

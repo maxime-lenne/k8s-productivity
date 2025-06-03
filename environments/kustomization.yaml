@@ -31,13 +31,13 @@ patches:
         valueFrom:
           configMapKeyRef:
             name: app-config-staging  # Nom de la ConfigMap générée
-            key: BASEROW_STAGING_DOMAIN
+            key: BASEROW_HOST
       - op: add
         path: /spec/rules/1/host
         valueFrom:
           configMapKeyRef:
             name: app-config-staging  # Nom de la ConfigMap générée
-            key: N8N_STAGING_DOMAIN
+            key: N8N_DOMAIN
       - op: add
         path: /spec/tls
         value:
@@ -45,11 +45,11 @@ patches:
               - valueFrom:
                   configMapKeyRef:
                     name: app-config-staging
-                    key: BASEROW_STAGING_DOMAIN
+                    key: BASEROW_DOMAIN
               - valueFrom:
                   configMapKeyRef:
                     name: app-config-staging
-                    key: N8N_STAGING_DOMAIN
+                    key: N8N_DOMAIN
             secretName: apps-tls-staging-cert
     target:
       kind: Ingress
