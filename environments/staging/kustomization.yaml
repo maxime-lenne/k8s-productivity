@@ -1,3 +1,4 @@
+---
 # environments/staging/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -29,32 +30,32 @@ patches:
         path: /spec/rules/0/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging # Nom de la ConfigMap générée
+            name: app-config-staging  # Nom de la ConfigMap générée
             key: BASEROW_STAGING_DOMAIN
       - op: add
         path: /spec/rules/1/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging # Nom de la ConfigMap générée
+            name: app-config-staging  # Nom de la ConfigMap générée
             key: N8N_STAGING_DOMAIN
       - op: add
         path: /spec/tls
         value:
           - hosts:
-              - baserow.staging.maxime-lenne.fr # Repris de la ConfigMap
-              - n8n.staging.maxime-lenne.fr # Repris de la ConfigMap
+              - baserow.staging.maxime-lenne.fr  # Repris de la ConfigMap
+              - n8n.staging.maxime-lenne.fr  # Repris de la ConfigMap
             secretName: apps-tls-staging-cert
     target:
       kind: Ingress
-      name: apps-ingress # Cible l'Ingress de base
+      name: apps-ingress  # Cible l'Ingress de base
 
   # Patch pour ajouter la section envFrom au déploiement Baserow
   - patch: |
       - op: add
-        path: /spec/template/spec/containers/0/envFrom # Ajouter la section envFrom
+        path: /spec/template/spec/containers/0/envFrom  # Ajouter la section envFrom
         value:
         - configMapRef:
-            name: app-config-staging # Nom de la ConfigMap générée par Kustomize
+            name: app-config-staging  # Nom de la ConfigMap générée par Kustomize
     target:
       kind: Deployment
       name: baserow
@@ -62,10 +63,10 @@ patches:
   # Patch pour ajouter la section envFrom au déploiement N8N
   - patch: |
       - op: add
-        path: /spec/template/spec/containers/0/envFrom # Ajouter la section envFrom
+        path: /spec/template/spec/containers/0/envFrom  # Ajouter la section envFrom
         value:
         - configMapRef:
-            name: app-config-staging # Nom de la ConfigMap générée par Kustomize
+            name: app-config-staging  # Nom de la ConfigMap générée par Kustomize
     target:
       kind: Deployment
       name: n8n

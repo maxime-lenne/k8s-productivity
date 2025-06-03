@@ -1,3 +1,4 @@
+---
 # environments/staging/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -29,13 +30,13 @@ patches:
         path: /spec/rules/0/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging # Nom de la ConfigMap générée
+            name: app-config-staging  # Nom de la ConfigMap générée
             key: BASEROW_STAGING_DOMAIN
       - op: add
         path: /spec/rules/1/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging # Nom de la ConfigMap générée
+            name: app-config-staging  # Nom de la ConfigMap générée
             key: N8N_STAGING_DOMAIN
       - op: add
         path: /spec/tls
@@ -52,7 +53,7 @@ patches:
             secretName: apps-tls-staging-cert
     target:
       kind: Ingress
-      name: apps-ingress # Cible l'Ingress de base
+      name: apps-ingress  # Cible l'Ingress de base
 
 configMapGenerator:
   - name: app-config-staging

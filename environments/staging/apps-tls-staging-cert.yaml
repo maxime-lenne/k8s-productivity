@@ -1,16 +1,17 @@
+---
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: apps-tls-staging-cert
-  namespace: staging # S'assurer que le namespace est correct
+  namespace: staging  # S'assurer que le namespace est correct
 spec:
   secretName: apps-tls-staging-cert
-  duration: 2160h # 90d
-  renewBefore: 360h # 15d
+  duration: 2160h  # 90d
+  renewBefore: 360h  # 15d
   subject:
     organizations:
       - Maxime
-  commonName: baserow.staging.maxime-lenne.fr # Repris de la ConfigMap STAGING_DOMAIN (ou un domaine principal)
+  commonName: baserow.staging.maxime-lenne.fr  # Repris de la ConfigMap STAGING_DOMAIN (ou un domaine principal)
   isCA: false
   privateKey:
     algorithm: RSA
@@ -20,9 +21,9 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - baserow.staging.maxime-lenne.fr # Repris de la ConfigMap BASEROW_STAGING_DOMAIN
-    - n8n.staging.maxime-lenne.fr # Repris de la ConfigMap N8N_STAGING_DOMAIN
+    - baserow.staging.maxime-lenne.fr  # Repris de la ConfigMap BASEROW_STAGING_DOMAIN
+    - n8n.staging.maxime-lenne.fr  # Repris de la ConfigMap N8N_STAGING_DOMAIN
   issuerRef:
-    name: letsencrypt-prod # Utiliser l'issuer de production
+    name: letsencrypt-prod  # Utiliser l'issuer de production
     kind: ClusterIssuer
     group: cert-manager.io 
