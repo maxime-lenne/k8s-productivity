@@ -14,6 +14,13 @@ spec:
     spec:
       securityContext:
         fsGroup: 1000
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command: ['sh', '-c', 'until nc -z postgresql 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-redis
+          image: busybox
+          command: ['sh', '-c', 'until nc -z redis 6379; do echo waiting for redis; sleep 2; done;']
       containers:
       - name: n8n
         image: n8nio/n8n:latest
@@ -43,29 +50,15 @@ spec:
             secretKeyRef:
               name: postgresql-secret
               key: N8N_DB_PASSWORD
-        - name: N8N_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: N8N_STAGING_DOMAIN
+        # Variables d'environnement individuelles (celles qui ne viennent PAS de app-config)
         - name: N8N_PORT
           value: "5678"
-        - name: N8N_PROTOCOL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: SSL_REDIRECT
         - name: N8N_USER_MANAGEMENT_DISABLED
           value: "true"
         - name: N8N_BASIC_AUTH_ACTIVE
           value: "false"
         - name: N8N_DIAGNOSTICS_ENABLED
           value: "false"
-        - name: WEBHOOK_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: N8N_STAGING_DOMAIN
         - name: N8N_HIRING_BANNER_ENABLED
           value: "false"
         - name: N8N_EMAIL_MODE
@@ -86,6 +79,9 @@ spec:
           value: "false"
         - name: N8N_RUNNERS_ENABLED
           value: "true"
+        envFrom:
+        - configMapRef:
+            name: app-config # Ce nom sera résolu par Kustomize
         resources:
           requests:
             memory: "256Mi"

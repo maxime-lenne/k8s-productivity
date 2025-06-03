@@ -12,6 +12,13 @@ spec:
       labels:
         app: baserow
     spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command: ['sh', '-c', 'until nc -z postgresql 5432; do echo waiting for postgres; sleep 2; done;']
+        - name: wait-for-redis
+          image: busybox
+          command: ['sh', '-c', 'until nc -z redis 6379; do echo waiting for redis; sleep 2; done;']
       containers:
       - name: baserow
         image: baserow/baserow:latest
@@ -39,25 +46,8 @@ spec:
             secretKeyRef:
               name: postgresql-secret
               key: BASEROW_DB_PASSWORD
-        - name: BASEROW_PUBLIC_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: BASEROW_STAGING_DOMAIN
-        - name: BASEROW_BACKEND_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: BASEROW_STAGING_DOMAIN
-        - name: BASEROW_FRONTEND_URL
-          valueFrom:
-            configMapKeyRef:
-              name: app-config-staging
-              key: BASEROW_STAGING_DOMAIN
         - name: DJANGO_SETTINGS_MODULE
           value: baserow.config.settings.base
-        - name: WEBFRONTEND_URL
-          value: https://baserow.staging.maxime-lenne.fr
         - name: REDIS_HOST
           value: redis
         - name: REDIS_PORT
@@ -77,6 +67,9 @@ spec:
             secretKeyRef:
               name: baserow-secret
               key: JWT_SECRET
+        envFrom:
+        - configMapRef:
+            name: app-config
         volumeMounts:
         - name: baserow-data
           mountPath: /baserow/data

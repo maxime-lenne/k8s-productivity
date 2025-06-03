@@ -12,5 +12,4 @@ spec:
       name: postgresql
   selector:
     app: postgresql
-    apiVersion: v1
   type: ClusterIP 

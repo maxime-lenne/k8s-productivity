@@ -2,12 +2,77 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Base des manifests communs
+# Base des manifestes communs
 resources:
   - ../../base
+  # Inclure le SealedSecret pour les secrets specifiques a prod
+  - secrets-prod.yaml
+  # Inclure le manifeste Certificate pour prod
+  - apps-tls-prod-cert.yaml
 
 # Définir le namespace pour cet environnement
 namespace: prod
+
+# Patches pour les configurations spécifiques à l'environnement de production
+patches:
+  - patch: |
+      - op: replace
+        path: /metadata/name
+        value: apps-ingress-prod
+      - op: add
+        path: /metadata/annotations
+        value:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      # Les hostnames seront ajoutés via ConfigMapKeyRef dans le patch
+      - op: add
+        path: /spec/rules/0/host
+        valueFrom:
+          configMapKeyRef:
+            name: app-config-prod # Nom de la ConfigMap générée
+            key: BASEROW_PROD_DOMAIN
+      - op: add
+        path: /spec/rules/1/host
+        valueFrom:
+          configMapKeyRef:
+            name: app-config-prod # Nom de la ConfigMap générée
+            key: N8N_PROD_DOMAIN
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts:
+              - valueFrom:
+                  configMapKeyRef:
+                    name: app-config-prod
+                    key: BASEROW_PROD_DOMAIN
+              - valueFrom:
+                  configMapKeyRef:
+                    name: app-config-prod
+                    key: N8N_PROD_DOMAIN
+            secretName: apps-tls-prod-cert
+    target:
+      kind: Ingress
+      name: apps-ingress # Cible l'Ingress de base
+
+configMapGenerator:
+  - name: app-config-prod
+    literals:
+      # Variables non sensibles spécifiques à prod (basé sur sample.env)
+      - POSTGRES_USER=postgres
+      - N8N_DB_NAME=n8n_db
+      - N8N_DB_USER=n8n_user
+      - BASEROW_DB_NAME=baserow_db
+      - BASEROW_DB_USER=baserow_user
+      - BASEROW_PROD_DOMAIN=baserow.example.com
+      - N8N_PROD_DOMAIN=n8n.example.com
+      - INGRESS_CLASS=nginx
+      - CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer # Inclure pour cohérence si référencé dans base
+      - CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
+      - SSL_REDIRECT=true # Redirection SSL activée pour prod
+      - FORCE_SSL_REDIRECT=true
+      - CERT_MANAGER_EMAIL=hello@maxime-lenne.fr
+      - PROD_DOMAIN=maxime-lenne.fr # Domaine racine pour référence
+      - STAGING_DOMAIN=staging.maxime-lenne.fr # Inclure pour cohérence si référencé dans base
 
 # Ici, nous ajouterons les patches ou les générateurs
 # pour les configurations spécifiques à l'environnement de production,

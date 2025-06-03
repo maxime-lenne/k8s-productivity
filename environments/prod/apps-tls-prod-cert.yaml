@@ -2,6 +2,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: apps-tls-prod-cert
+  namespace: prod
 spec:
   secretName: apps-tls-prod-cert
   duration: 2160h # 90d
@@ -9,7 +10,11 @@ spec:
   subject:
     organizations:
       - Maxime
-  commonName: ${PROD_DOMAIN}
+  commonName:
+    valueFrom:
+      configMapKeyRef:
+        name: app-config-prod
+        key: PROD_DOMAIN
   isCA: false
   privateKey:
     algorithm: RSA
@@ -19,9 +24,15 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - ${BASEROW_PROD_DOMAIN}
-    - ${N8N_PROD_DOMAIN}
+    - valueFrom:
+        configMapKeyRef:
+          name: app-config-prod
+          key: BASEROW_PROD_DOMAIN
+    - valueFrom:
+        configMapKeyRef:
+          name: app-config-prod
+          key: N8N_PROD_DOMAIN
   issuerRef:
-    name: selfsigned-issuer
+    name: letsencrypt-prod
     kind: ClusterIssuer
     group: cert-manager.io 

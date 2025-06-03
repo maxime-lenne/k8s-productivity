@@ -23,87 +23,18 @@ Ce document décrit la gestion des Ingress, des certificats SSL/TLS et des secre
 
 La gestion des secrets suit les bonnes pratiques de sécurité. Les secrets ne sont jamais versionnés dans Git.
 
-1. Copiez le fichier d'exemple des variables d'environnement :
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Modifiez le fichier `.env` avec vos propres valeurs :
-   ```bash
-   vim .env
-   ```
-   ⚠️ Ne committez JAMAIS le fichier `.env` dans Git. Il est déjà listé dans `.gitignore`.
-
-3. Générez les secrets Kubernetes :
-   ```bash
-   ./generate-secrets.sh
-   ```
-   Cette commande va créer trois fichiers de secrets :
-   - `redis-secret.yaml` : Contient le mot de passe Redis
-   - `postgresql-secret.yaml` : Contient les identifiants PostgreSQL
-   - `baserow-secret.yaml` : Contient les clés secrètes de Baserow
-
-   ⚠️ Ces fichiers sont également exclus de Git via `.gitignore`.
-
-4. Appliquez les secrets dans Kubernetes :
-   ```bash
-   kubectl apply -f redis-secret.yaml -f postgresql-secret.yaml -f baserow-secret.yaml
-   ```
-
-5. Créez le ConfigMap pour l'initialisation de PostgreSQL :
-   ```bash
-   kubectl create configmap init-script --from-file=init-databases.sh
-   ```
-
 ## Configuration des Ingress
 
-Ce projet utilise Nginx Ingress Controller pour gérer l'accès aux services Baserow et N8N. La configuration est gérée via des variables d'environnement et des scripts de génération.
+Ce projet utilise Nginx Ingress Controller pour gérer l'accès aux services Baserow et N8N. La configuration est gérée via des variables d'environnement.
 
-- `.env` : Contient toutes les variables de configuration
-- `generate-ingress-configs.sh` : Script pour générer les configurations d'ingress
-- `ingress-nginx-config.yaml` : Configuration globale de l'ingress-controller (généré)
-- `apps-ingress-local.yaml` : Configuration des ingress pour l'environnement local (généré)
-- `apps-ingress-prod.yaml` : Configuration des ingress pour l'environnement de production (généré)
+
+- `base/ingress-nginx/ingress-nginx-configmap.yaml` : Configuration globale de l'ingress-controller
+- `environnements/staging/apps-tls-staging-cert.yaml` : Configuration du certificate pour l'environnement de staging
+- `environnements/prod/apps-tls-prod-cert.yaml` : Configuration du certificate pour l'environnement de production
+
 
 ## Variables d'environnement
-
-### Domaines
-```env
-# Local environment domains
-BASEROW_LOCAL_DOMAIN=baserow.local
-N8N_LOCAL_DOMAIN=n8n.local
-
-# Production environment domains
-BASEROW_PROD_DOMAIN=baserow.example.com
-N8N_PROD_DOMAIN=n8n.example.com
-```
-
-### Configuration Ingress
-```env
-# Ingress configurations
-INGRESS_CLASS=nginx
-CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer
-CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
-
-# SSL configuration
-SSL_REDIRECT=false
-FORCE_SSL_REDIRECT=false
-```
-
-## Utilisation
-
-1. Modifiez les variables dans le fichier `.env` selon vos besoins
-
-2. Générez et appliquez les configurations :
-```bash
-./generate-ingress-configs.sh
-```
-
-Ce script va :
-- Générer le ConfigMap pour ingress-nginx avec les paramètres SSL globaux
-- Créer les configurations d'ingress pour les environnements local et production
-- Appliquer les configurations dans le cluster
-- Redémarrer le contrôleur ingress-nginx pour appliquer les changements
+todo : ajouter du détails pour savoir à quoi elle serve
 
 ## Spécificités des environnements
 
@@ -142,72 +73,52 @@ Pour l'environnement local, des certificats auto-signés sont utilisés via un i
 
 ## Secrets
 
-Les secrets sont générés à partir du script `generate-secrets.sh` et appliqués dans le cluster. Ils ne doivent jamais être versionnés dans Git.
+> **Nouveau workflow de gestion des secrets (Kustomize + SealedSecrets) :**
+>
+> 1. Copier `environments/secrets-sample.yaml` dans le dossier de l'environnement souhaité (ex : `environments/staging/secrets-clear.yaml`)
+> 2. Adapter les valeurs et le namespace
+> 3. Sceller le secret avec :
+>    ```sh
+>    kubeseal -f environments/staging/secrets-clear.yaml --namespace staging -o yaml > environments/staging/secrets-staging.yaml
+>    rm environments/staging/secrets-clear.yaml
+>    ```
+> 4. S'assurer que le fichier scellé est bien référencé dans `environments/staging/kustomization.yaml`
+> 5. Appliquer l'overlay avec :
+>    ```sh
+>    kubectl apply -k environments/staging/
+>    ```
+> 6. **Ne jamais commiter de secret en clair dans le dépôt.**
 
-## Gestion multi-environnement
-
-Pour chaque environnement (local, staging, prod), créez un fichier `.env` dédié :
-- `.env.local`
-- `.env.staging`
-- `.env.prod`
-
-Copiez le modèle :
-```bash
-cp .env.example .env.local
-cp .env.example .env.staging
-cp .env.example .env.prod
-```
-
-Modifiez les variables selon l'environnement (domaines, secrets, émetteurs de certificats, etc.).
-
-Pour générer les secrets et ingress pour un environnement donné :
-```bash
-./generate-secrets.sh local
-./generate-ingress-configs.sh local
-
-./generate-secrets.sh staging
-./generate-ingress-configs.sh staging
-
-./generate-secrets.sh prod
-./generate-ingress-configs.sh prod
-```
-
-Chaque script chargera automatiquement le bon fichier `.env`. 
+Les secrets sensibles sont stockés dans des SealedSecrets, scellés à partir d'un manifeste Secret en clair. Le contrôleur Sealed Secrets du cluster déchiffre ces fichiers et crée les Secrets Kubernetes standards. Les déploiements référencent ces secrets via `secretKeyRef`.
 
 ## Variables d'environnement (ConfigMaps et Secrets)
 
-Les applications (Baserow, N8N, etc.) consomment leurs configurations via des variables d'environnement, qui sont injectées à partir de ConfigMaps et de Secrets.
+- **Variables non sensibles** : injectées via ConfigMap générée par Kustomize (`configMapGenerator` dans le `kustomization.yaml` de l'overlay).
+- **Variables sensibles** : injectées via Secret, scellé avec SealedSecrets.
 
-*   **Variables non sensibles :** (URLs, noms d'utilisateurs, noms de bases de données, configurations diverses) sont stockées dans des **ConfigMaps**. Pour chaque environnement, une ConfigMap est générée par Kustomize en utilisant la section `configMapGenerator` dans le fichier `environments/<environnement>/kustomization.yaml`. Kustomize ajoute un hash au nom de la ConfigMap générée.
-*   **Secrets sensibles :** (Mots de passe, clés secrètes) sont stockés dans des **Secrets**, qui sont créés à partir des manifestes `SealedSecret` déchiffrés par le contrôleur Sealed Secrets (comme décrit dans la section [Configuration des secrets (avec Sealed Secrets)](#configuration-des-secrets-avec-sealed-secrets)). Les noms de ces Secrets sont ceux définis dans le manifeste Secret original avant scellement.
-
-Les déploiements des applications dans le répertoire `base/` référencent ces variables en utilisant `valueFrom` avec `configMapKeyRef` (pour les ConfigMaps) ou `secretKeyRef` (pour les Secrets). Kustomize (pour les ConfigMaps générées) et le contrôleur Sealed Secrets (pour les Secrets déchiffrés) s'assurent que les déploiements référencent les bonnes ressources avec les noms corrects.
+Les déploiements référencent ces variables via `valueFrom` (`configMapKeyRef` ou `secretKeyRef`).
 
 ## Utilisation (Déploiement avec Kustomize)
 
-Le déploiement ou la mise à jour de l'environnement se fait en appliquant la kustomization de l'environnement souhaité. Assurez-vous d'abord que les secrets sensibles pour l'environnement ont été scellés et que le fichier `SealedSecret` chiffré est présent dans le répertoire de l'environnement et référencé dans `kustomization.yaml`.
+1. S'assurer que le SealedSecret est présent et référencé dans le `kustomization.yaml` de l'overlay.
+2. Appliquer l'overlay :
+   ```sh
+   kubectl apply -k environments/<environnement>/
+   ```
+3. Vérifier la création des ressources :
+   ```sh
+   kubectl get all -n <environnement>
+   kubectl get sealedsecrets -n <environnement>
+   kubectl get secrets -n <environnement>
+   ```
 
-Utilisez la commande suivante :
+## Certificats
 
-```bash
-kubectl apply -k environments/<environnement>/
-```
-
-Remplacez `<environnement>` par le nom du répertoire de l'environnement (par exemple, `staging`, `prod`).
-
-Cette commande :
-1.  Combine les manifestes de base (`base/`) avec les overlays spécifiques à l'environnement (`environments/<environnement>/`).
-2.  Génère les ConfigMaps avec les variables non sensibles.
-3.  Inclut le manifeste `SealedSecret` chiffré.
-4.  Applique l'ensemble des ressources générées à votre cluster dans le namespace défini par la kustomization de l'environnement.
-
-Le contrôleur Sealed Secrets dans le cluster interceptera le `SealedSecret`, le déchiffrera et créera le Secret Kubernetes standard correspondant, permettant aux déploiements de l'utiliser.
+Les certificats SSL/TLS sont gérés par **cert-manager**. L'émetteur (`ClusterIssuer`) est défini dans les patches d'overlay Kustomize. Les secrets de certificats sont créés automatiquement par cert-manager.
 
 ## Spécificités des environnements
 
-Les spécificités de chaque environnement (domaines, émetteurs de certificats, etc.) sont définies dans les fichiers `kustomization.yaml` de leurs répertoires respectifs sous `environments/`.
-
-Par exemple, pour l'environnement `staging`, les patches définissent les hostnames spécifiques de staging et l'utilisation de l'émetteur Let's Encrypt de production pour les certificats.
+Les spécificités (domaines, émetteurs de certificats, etc.) sont définies dans les fichiers `kustomization.yaml` de chaque overlay sous `environments/`.
 
 ## Configuration globale (ConfigMap)
 

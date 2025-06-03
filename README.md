@@ -26,31 +26,59 @@ Voir la section dédiée ci-dessous pour l'organisation des dossiers et fichiers
 
 Ces étapes décrivent comment déployer un environnement en utilisant Kustomize. Remplacez `<environnement>` par le nom de l'environnement souhaité (par exemple, `staging`, `prod`).
 
-1. Assurez-vous que le contrôleur Sealed Secrets est installé dans votre cluster.
-2. Créez un fichier de secrets en clair pour votre environnement (par exemple, `environments/<environnement>/secrets-clear.yaml`). **Ne commitez PAS ce fichier dans Git !**
-   ```yaml
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: secrets-<environnement>
-     namespace: <environnement>
-   type: Opaque
-   stringData:
-     VOTRE_CLE_SECRETE_1: "votre_valeur_1"
-     VOTRE_CLE_SECRETE_2: "votre_valeur_2"
-     # ... ajoutez toutes vos clés sensibles ici ...
+### Procédure complète pour un cluster neuf
+
+1. **Se connecter au cluster Scaleway**
+   ```sh
+   export KUBECONFIG=./environments/<environnement>/kubeconfig-k8s-productivity-<environnement>.yaml
+   kubectl config use-context <contexte-<environnement>>
    ```
-3. Scellez le fichier de secrets en clair en utilisant `kubeseal` pour créer le fichier `SealedSecret` chiffré. Ce fichier *peut* être commité dans Git.
-   ```bash
-   kubeseal -f environments/<environnement>/secrets-clear.yaml --namespace <environnement> -o yaml > environments/<environnement>/secrets-<environnement>.yaml
-   # Supprimez le fichier secrets-clear.yaml après le scellement !
-   rm environments/<environnement>/secrets-clear.yaml
+2. **Créer le namespace** (obligatoire avant tout apply)
+   ```sh
+   kubectl create namespace <environnement>
    ```
-4. Assurez-vous que votre fichier de configuration Kustomize pour l'environnement (`environments/<environnement>/kustomization.yaml`) référence la base et inclut les configurations spécifiques (comme les Sealed Secrets et les ConfigMaps générées).
-5. Appliquez la configuration de l'environnement en utilisant `kubectl apply -k` :
-   ```bash
+3. **Installer les composants essentiels (si ce n'est pas déjà fait sur le cluster)**
+   
+   - **Ingress-Nginx Controller**
+     ```sh
+     helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+     helm repo update
+     helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
+     ```
+   
+   - **Cert-Manager (pour HTTPS)**
+     ```sh
+     kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.3/cert-manager.yaml
+     ```
+4. **Installer le contrôleur Sealed Secrets** (si ce n'est pas déjà fait)
+   ```sh
+   helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+   helm install sealed-secrets-controller sealed-secrets/sealed-secrets --namespace kube-system
+   ```
+5. **Générer et sceller les secrets**
+   - Copier `environments/secrets-sample.yaml` en `environments/<environnement>/secrets-clear.yaml`
+   - Adapter les valeurs et le namespace à `<environnement>`
+   - Sceller le secret :
+     ```sh
+     kubeseal -f environments/<environnement>/secrets-clear.yaml --namespace <environnement> -o yaml > environments/<environnement>/secrets-<environnement>.yaml
+     rm environments/<environnement>/secrets-clear.yaml
+     ```
+6. **Appliquer la configuration Kustomize**
+   ```sh
    kubectl apply -k environments/<environnement>/
    ```
+7. **Vérifier le déploiement**
+   ```sh
+   kubectl get all -n <environnement>
+   kubectl get sealedsecrets -n <environnement>
+   kubectl get secrets -n <environnement>
+   kubectl get ingress -n <environnement>
+   ```
+
+> **Remarque :**
+> - Le fichier `secrets-sample.yaml` est un exemple de Secret en clair. Il doit être adapté, scellé avec `kubeseal`, puis supprimé (ne jamais le commiter en clair !).
+> - Le namespace doit exister avant d'appliquer la configuration Kustomize.
+> - Le contrôleur Sealed Secrets ne doit être installé qu'une seule fois par cluster.
 
 ## Documentation détaillée
 

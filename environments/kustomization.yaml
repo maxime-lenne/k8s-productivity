@@ -41,34 +41,18 @@ patches:
         path: /spec/tls
         value:
           - hosts:
-              - baserow.staging.maxime-lenne.fr # Repris de la ConfigMap
-              - n8n.staging.maxime-lenne.fr # Repris de la ConfigMap
+              - valueFrom:
+                  configMapKeyRef:
+                    name: app-config-staging
+                    key: BASEROW_STAGING_DOMAIN
+              - valueFrom:
+                  configMapKeyRef:
+                    name: app-config-staging
+                    key: N8N_STAGING_DOMAIN
             secretName: apps-tls-staging-cert
     target:
       kind: Ingress
       name: apps-ingress # Cible l'Ingress de base
-
-  # Patch pour ajouter la section envFrom au déploiement Baserow
-  - patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/envFrom # Ajouter la section envFrom
-        value:
-        - configMapRef:
-            name: app-config-staging # Nom de la ConfigMap générée par Kustomize
-    target:
-      kind: Deployment
-      name: baserow
-
-  # Patch pour ajouter la section envFrom au déploiement N8N
-  - patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/envFrom # Ajouter la section envFrom
-        value:
-        - configMapRef:
-            name: app-config-staging # Nom de la ConfigMap générée par Kustomize
-    target:
-      kind: Deployment
-      name: n8n
 
 configMapGenerator:
   - name: app-config-staging

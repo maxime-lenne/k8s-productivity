@@ -11,16 +11,17 @@ resources:
 
   # N8N
   - n8n/n8n-deployment.yaml
-  - n8n/n8n-secret.yaml
-  - n8n/n8n-service.yaml
   - n8n/n8n-pvc.yaml
+  - n8n/n8n-service.yaml
 
   # PostgreSQL
   - postgresql/postgresql-secret.yaml
-  - postgresql/postgresql-configmap.yaml
   - postgresql/postgresql-pvc.yaml
   - postgresql/postgresql-deployment.yaml
   - postgresql/postgresql-service.yaml
+
+  # PostgreSQL Database Initialization
+  - postgresql/init-script-configmap.yaml
 
   # Redis
   - redis/redis-secret.yaml
@@ -32,3 +33,7 @@ resources:
 
   # Application Ingress (Baserow & N8N)
   - apps-ingress.yaml
+
+  # Cert-Manager Issuers
+  - cert-managers/letsencrypt-issuer.yaml
+  - cert-managers/self-signed-issuer.yaml
