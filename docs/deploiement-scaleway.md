@@ -218,6 +218,23 @@ helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
 ```
 
+### 1.1 Configuration du DNS (après installation d'Ingress-Nginx)
+
+Après l'installation d'Ingress-Nginx, il faut récupérer l'adresse IP publique du LoadBalancer pour pointer vos domaines (n8n, baserow, etc.) vers le cluster.
+
+- Récupérez l'IP du LoadBalancer Ingress-Nginx :
+  ```sh
+  kubectl get svc ingress-nginx-controller -n ingress-nginx
+  ```
+  Regardez la colonne `EXTERNAL-IP`.
+
+- Configurez vos enregistrements DNS (type A) chez votre registrar ou dans Scaleway DNS :
+  - Exemple :
+    - `n8n.staging.mondomaine.com` → [EXTERNAL-IP]
+    - `baserow.staging.mondomaine.com` → [EXTERNAL-IP]
+
+- Attendez la propagation DNS (quelques minutes à quelques heures selon le provider) avant de tester l'accès aux applications via les ingress.
+
 ### 2. Cert-Manager (pour HTTPS)
 
 Installez cert-manager et ses CRDs :

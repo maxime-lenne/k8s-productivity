@@ -50,12 +50,30 @@ Ces étapes décrivent comment déployer un environnement en utilisant Kustomize
      ```sh
      kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.3/cert-manager.yaml
      ```
-4. **Installer le contrôleur Sealed Secrets** (si ce n'est pas déjà fait)
+
+4. **Configurer le DNS pour les domaines de l'environnement**
+   
+   Après l'installation d'Ingress-Nginx, il faut récupérer l'adresse IP publique du LoadBalancer pour pointer tes domaines (n8n, baserow, etc.) vers le cluster.
+   
+   - Récupère l'IP du LoadBalancer Ingress-Nginx :
+     ```sh
+     kubectl get svc ingress-nginx-controller -n ingress-nginx
+     ```
+     Regarde la colonne `EXTERNAL-IP`.
+   
+   - Configure tes enregistrements DNS (type A) chez ton registrar ou dans Scaleway DNS :
+     - Exemple :
+       - `n8n.staging.mondomaine.com` → [EXTERNAL-IP]
+       - `baserow.staging.mondomaine.com` → [EXTERNAL-IP]
+   
+   - Attends la propagation DNS (quelques minutes à quelques heures selon le provider).
+
+5. **Installer le contrôleur Sealed Secrets** (si ce n'est pas déjà fait)
    ```sh
    helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
    helm install sealed-secrets-controller sealed-secrets/sealed-secrets --namespace kube-system
    ```
-5. **Générer et sceller les secrets**
+6. **Générer et sceller les secrets**
    - Copier `environments/secrets-sample.yaml` en `environments/<environnement>/secrets-clear.yaml`
    - Adapter les valeurs et le namespace à `<environnement>`
    - Sceller le secret :
@@ -63,11 +81,11 @@ Ces étapes décrivent comment déployer un environnement en utilisant Kustomize
      kubeseal -f environments/<environnement>/secrets-clear.yaml --namespace <environnement> -o yaml > environments/<environnement>/secrets-<environnement>.yaml
      rm environments/<environnement>/secrets-clear.yaml
      ```
-6. **Appliquer la configuration Kustomize**
+7. **Appliquer la configuration Kustomize**
    ```sh
    kubectl apply -k environments/<environnement>/
    ```
-7. **Vérifier le déploiement**
+8. **Vérifier le déploiement**
    ```sh
    kubectl get all -n <environnement>
    kubectl get sealedsecrets -n <environnement>
