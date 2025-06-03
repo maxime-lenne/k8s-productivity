@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy to'
+        description: 'Environnement de déploiement'
         required: true
         default: 'dev'
         type: choice
@@ -18,67 +18,55 @@ on:
           - prod
 
 env:
-  HELM_VERSION: v3.12.3
   KUBECTL_VERSION: v1.27.3
 
 jobs:
   lint:
-    name: Lint
+    name: Lint YAML
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
+      - name: Lint YAML manifests
+        uses: ibiqlik/action-yamllint@v3
         with:
-          version: ${{ env.HELM_VERSION }}
-
-      - name: Lint Helm charts
-        run: |
-          helm lint helm/k8s-productivity
+          file_or_dir: ./k8s-manifests
 
   test:
-    name: Test
+    name: Test Kubernetes Manifests
     runs-on: ubuntu-latest
     needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
         with:
-          version: ${{ env.HELM_VERSION }}
+          version: ${{ env.KUBECTL_VERSION }}
 
-      - name: Test Helm templates
+      - name: Dry-run apply manifests
         run: |
-          helm template helm/k8s-productivity --values helm/k8s-productivity/values-dev.yaml
+          for file in k8s-manifests/*.yaml; do
+            kubectl apply --dry-run=client -f $file
+          done
 
   build:
-    name: Build
+    name: Build (optionnel)
     runs-on: ubuntu-latest
     needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      # Ajoute ici tes étapes de build (ex: build d'image Docker)
+
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}
+    runs-on: ubuntu-latest
+    needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: ${{ env.HELM_VERSION }}
-
-      - name: Package Helm chart
-        run: |
-          helm package helm/k8s-productivity --destination .
-
-  deploy-dev:
-    name: Deploy to Development
-    runs-on: ubuntu-latest
-    needs: build
-    if: (github.ref == 'refs/heads/develop' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'dev')
-    environment: development
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production') || 'development' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -88,51 +76,12 @@ jobs:
         with:
           version: ${{ env.KUBECTL_VERSION }}
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: ${{ env.HELM_VERSION }}
-
       - name: Configure Kubernetes context
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBECONFIG }}
 
-      - name: Deploy to development
+      - name: Deploy with Kustomize
         run: |
-          helm upgrade --install k8s-productivity helm/k8s-productivity \
-            --values helm/k8s-productivity/values-dev.yaml \
-            --namespace development --create-namespace
-
-  deploy-prod:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: build
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'prod')
-    environment: production
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: ${{ env.KUBECTL_VERSION }}
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: ${{ env.HELM_VERSION }}
-
-      - name: Configure Kubernetes context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-
-      - name: Deploy to production
-        run: |
-          helm upgrade --install k8s-productivity helm/k8s-productivity \
-            --values helm/k8s-productivity/values-prod.yaml \
-            --namespace production --create-namespace
+          kubectl apply -k environments/${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}/
