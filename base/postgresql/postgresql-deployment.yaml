@@ -16,69 +16,69 @@ spec:
       securityContext:
         fsGroup: 999
       containers:
-      - name: postgresql
-        image: postgres:15-alpine
-        ports:
-        - containerPort: 5432
-        env:
-        - name: PGDATA
-          value: /var/lib/postgresql/data/pgdata
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: POSTGRES_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: POSTGRES_PASSWORD
-        - name: N8N_DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: N8N_DB_NAME
-        - name: N8N_DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: N8N_DB_USER
-        - name: N8N_DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: N8N_DB_PASSWORD
-        - name: BASEROW_DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_NAME
-        - name: BASEROW_DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_USER
-        - name: BASEROW_DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_PASSWORD
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        volumeMounts:
-        - name: postgresql-data
-          mountPath: /var/lib/postgresql/data
-        - name: init-script
-          mountPath: /docker-entrypoint-initdb.d
+        - name: postgresql
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_PASSWORD
+            - name: N8N_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: N8N_DB_NAME
+            - name: N8N_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: N8N_DB_USER
+            - name: N8N_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: N8N_DB_PASSWORD
+            - name: BASEROW_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_NAME
+            - name: BASEROW_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_USER
+            - name: BASEROW_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: postgresql-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
       volumes:
-      - name: postgresql-data
-        persistentVolumeClaim:
-          claimName: postgresql-data
-      - name: init-script
-        configMap:
-          name: init-script
+        - name: postgresql-data
+          persistentVolumeClaim:
+            claimName: postgresql-data
+        - name: init-script
+          configMap:
+            name: init-script
