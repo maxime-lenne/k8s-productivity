@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,72 +16,78 @@ spec:
       initContainers:
         - name: wait-for-postgres
           image: busybox
-          command: ['sh', '-c', 'until nc -z postgresql 5432; do echo waiting for postgres; sleep 2; done;']
+          command:
+            - 'sh'
+            - '-c'
+            - 'until nc -z postgresql 5432; do echo waiting for postgres; sleep 2; done;'
         - name: wait-for-redis
           image: busybox
-          command: ['sh', '-c', 'until nc -z redis 6379; do echo waiting for redis; sleep 2; done;']
+          command:
+            - 'sh'
+            - '-c'
+            - 'until nc -z redis 6379; do echo waiting for redis; sleep 2; done;'
       containers:
-      - name: baserow
-        image: baserow/baserow:latest
-        ports:
-        - containerPort: 80
-        env:
-        - name: DATABASE_TYPE
-          value: postgresql
-        - name: DATABASE_HOST
-          value: postgresql
-        - name: DATABASE_PORT
-          value: "5432"
-        - name: DATABASE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_NAME
-        - name: DATABASE_USER
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_USER
-        - name: DATABASE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: postgresql-secret
-              key: BASEROW_DB_PASSWORD
-        - name: DJANGO_SETTINGS_MODULE
-          value: baserow.config.settings.base
-        - name: REDIS_HOST
-          value: redis
-        - name: REDIS_PORT
-          value: "6379"
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: redis-secret
-              key: REDIS_PASSWORD
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: baserow-secret
-              key: SECRET_KEY
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: baserow-secret
-              key: JWT_SECRET
-        envFrom:
-        - configMapRef:
-            name: app-config
-        volumeMounts:
-        - name: baserow-data
-          mountPath: /baserow/data
-        resources:
-          requests:
-            memory: "2Gi"
-            cpu: "250m"
-          limits:
-            memory: "4Gi"
-            cpu: "500m"
+        - name: baserow
+          image: baserow/baserow:latest
+          ports:
+            - containerPort: 80
+          env:
+            - name: DATABASE_TYPE
+              value: postgresql
+            - name: DATABASE_HOST
+              value: postgresql
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_NAME
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_USER
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: BASEROW_DB_PASSWORD
+            - name: DJANGO_SETTINGS_MODULE
+              value: baserow.config.settings.base
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: REDIS_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: baserow-secret
+                  key: SECRET_KEY
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: baserow-secret
+                  key: JWT_SECRET
+          envFrom:
+            - configMapRef:
+                name: app-config
+          volumeMounts:
+            - name: baserow-data
+              mountPath: /baserow/data
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "500m"
       volumes:
-      - name: baserow-data
-        persistentVolumeClaim:
-          claimName: baserow-data
+        - name: baserow-data
+          persistentVolumeClaim:
+            claimName: baserow-data
