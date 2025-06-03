@@ -31,7 +31,12 @@ jobs:
       - name: Lint YAML manifests
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: ./k8s-manifests
+          file_or_dir: ./base
+
+      - name: Lint YAML overlays
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: ./environments
 
   test:
     name: Test Kubernetes Manifests
@@ -46,11 +51,17 @@ jobs:
         with:
           version: ${{ env.KUBECTL_VERSION }}
 
-      - name: Dry-run apply manifests
+      - name: Dry-run apply manifests (dev)
         run: |
-          for file in k8s-manifests/*.yaml; do
-            kubectl apply --dry-run=client -f $file
-          done
+          kubectl apply --dry-run=client -k environments/dev/
+
+      - name: Dry-run apply manifests (staging)
+        run: |
+          kubectl apply --dry-run=client -k environments/staging/
+
+      - name: Dry-run apply manifests (prod)
+        run: |
+          kubectl apply --dry-run=client -k environments/prod/
 
   build:
     name: Build (optionnel)
