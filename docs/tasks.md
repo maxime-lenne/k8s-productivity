@@ -10,8 +10,8 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
    - [x] Add configurable values.yaml files for different environments
 
 2. [ ] Implement a proper CI/CD pipeline
-   - [ ] Set up GitHub Actions or similar CI/CD tool
-   - [ ] Create workflows for testing, building, and deploying
+   - [x] Set up GitHub Actions or similar CI/CD tool
+   - [x] Create workflows for testing, building, and deploying
    - [ ] Implement environment-specific deployments (dev, staging, prod)
 
 3. [ ] Implement a backup and restore strategy
@@ -34,9 +34,7 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
 ## Security Improvements
 
 6. [ ] Enhance secret management
-   - [ ] Implement a secrets management solution (HashiCorp Vault, Sealed Secrets, etc.)
-   - [ ] Remove hardcoded credentials from manifests
-   - [ ] Implement secret rotation policies
+   - [x] Implement a secrets management solution (HashiCorp Vault, Sealed Secrets, etc.)
 
 7. [ ] Implement network policies
    - [ ] Define and apply restrictive network policies for all components

@@ -30,13 +30,13 @@ patches:
         path: /spec/rules/0/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging  # Nom de la ConfigMap générée
+            name: app-config  # Nom de la ConfigMap générée
             key: BASEROW_HOST
       - op: add
         path: /spec/rules/1/host
         valueFrom:
           configMapKeyRef:
-            name: app-config-staging  # Nom de la ConfigMap générée
+            name: app-config  # Nom de la ConfigMap générée
             key: N8N_DOMAIN
       - op: add
         path: /spec/tls
@@ -44,11 +44,11 @@ patches:
           - hosts:
               - valueFrom:
                   configMapKeyRef:
-                    name: app-config-staging
+                    name: app-config
                     key: BASEROW_DOMAIN
               - valueFrom:
                   configMapKeyRef:
-                    name: app-config-staging
+                    name: app-config
                     key: N8N_DOMAIN
             secretName: apps-tls-staging-cert
     target:
@@ -56,7 +56,7 @@ patches:
       name: apps-ingress  # Cible l'Ingress de base
 
 configMapGenerator:
-  - name: app-config-staging
+  - name: app-config
     literals:
       # Variables non sensibles spécifiques à staging (basé sur sample.env)
       - POSTGRES_USER=postgres
@@ -64,8 +64,9 @@ configMapGenerator:
       - N8N_DB_USER=n8n_user
       - BASEROW_DB_NAME=baserow_db
       - BASEROW_DB_USER=baserow_user
-      - BASEROW_STAGING_DOMAIN=baserow.staging.maxime-lenne.fr
-      - N8N_STAGING_DOMAIN=n8n.staging.maxime-lenne.fr
+      - BASEROW_DOMAIN=baserow.staging.maxime-lenne.fr
+      - N8N_DOMAIN=n8n.staging.maxime-lenne.fr
+      - WEBHOOK_URL=https://n8n.staging.maxime-lenne.fr
       - INGRESS_CLASS=nginx
       - CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer
       - CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
