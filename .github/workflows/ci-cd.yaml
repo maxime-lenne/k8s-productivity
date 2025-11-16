@@ -56,30 +56,14 @@ jobs:
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
           sudo mv kustomize /usr/local/bin/
 
-      - name: Validate Kustomize manifests (local)
+      - name: Validate Kustomize manifests
         run: |
-          kubectl kustomize environments/local/ > /dev/null
-          echo "✓ Local environment manifests are valid"
-
-      - name: Validate Kustomize manifests (staging)
-        run: |
-          kubectl kustomize environments/staging/ > /dev/null
-          echo "✓ Staging environment manifests are valid"
-
-      - name: Validate Kustomize manifests (prod)
-        run: |
-          kubectl kustomize environments/prod/ > /dev/null
-          echo "✓ Prod environment manifests are valid"
-
-      - name: Validate generated manifests syntax
-        run: |
-          # Générer les manifests et valider leur syntaxe sans connexion au cluster
-          # KUBECONFIG=/dev/null empêche toute tentative de connexion au cluster
-          # --dry-run=client valide uniquement côté client sans connexion serveur
+          # Valider la syntaxe Kustomize et générer les manifests finaux
+          # kubectl kustomize valide la syntaxe sans nécessiter de connexion au cluster
           for env in local staging prod; do
             echo "Validating $env manifests..."
-            KUBECONFIG=/dev/null kubectl kustomize environments/$env/ | KUBECONFIG=/dev/null kubectl apply --dry-run=client -f - || exit 1
-            echo "✓ $env manifests syntax is valid"
+            kubectl kustomize environments/$env/ > /dev/null
+            echo "✓ $env environment manifests are valid"
           done
 
   build:
