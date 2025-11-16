@@ -15,6 +15,8 @@ baserow-secret.yaml
 .DS_Store
 Thumbs.db
 
+node_modules/
+
 # Fichiers de logs
 *.log
 

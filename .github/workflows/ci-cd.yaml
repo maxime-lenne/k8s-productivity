@@ -2,18 +2,18 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environnement de déploiement'
         required: true
-        default: 'dev'
+        default: 'local'
         type: choice
         options:
-          - dev
+          - local
           - staging
           - prod
 
@@ -51,17 +51,20 @@ jobs:
         with:
           version: ${{ env.KUBECTL_VERSION }}
 
-      - name: Dry-run apply manifests (dev)
+      - name: Install kustomize
         run: |
-          kubectl apply --dry-run=client -k environments/dev/
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
 
-      - name: Dry-run apply manifests (staging)
+      - name: Validate Kustomize manifests
         run: |
-          kubectl apply --dry-run=client -k environments/staging/
-
-      - name: Dry-run apply manifests (prod)
-        run: |
-          kubectl apply --dry-run=client -k environments/prod/
+          # Valider la syntaxe Kustomize et générer les manifests finaux
+          # kubectl kustomize valide la syntaxe sans nécessiter de connexion au cluster
+          for env in local staging prod; do
+            echo "Validating $env manifests..."
+            kubectl kustomize environments/$env/ > /dev/null
+            echo "✓ $env environment manifests are valid"
+          done
 
   build:
     name: Build (optionnel)
@@ -70,10 +73,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      # Ajoute ici tes étapes de build (ex: build d'image Docker)
+        # Ajoute ici tes étapes de build (ex: build d'image Docker)
 
   deploy:
-    name: Deploy to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}
+    name: Deploy to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'local' }}
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -95,4 +98,4 @@ jobs:
 
       - name: Deploy with Kustomize
         run: |
-          kubectl apply -k environments/${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'dev' }}/
+          kubectl apply -k environments/${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'prod') || 'local' }}/

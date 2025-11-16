@@ -6,7 +6,6 @@ kind: Kustomization
 resources:
   # Baserow
   - baserow/baserow-deployment.yaml
-  - baserow/baserow-secret.yaml
   - baserow/baserow-service.yaml
   - baserow/baserow-pvc.yaml
 
@@ -16,7 +15,6 @@ resources:
   - n8n/n8n-service.yaml
 
   # PostgreSQL
-  - postgresql/postgresql-secret.yaml
   - postgresql/postgresql-pvc.yaml
   - postgresql/postgresql-deployment.yaml
   - postgresql/postgresql-service.yaml
@@ -25,7 +23,6 @@ resources:
   - postgresql/init-script-configmap.yaml
 
   # Redis
-  - redis/redis-secret.yaml
   - redis/redis-deployment.yaml
   - redis/redis-service.yaml
 

@@ -27,36 +27,40 @@ patches:
           nginx.ingress.kubernetes.io/ssl-redirect: "true"
       # Les hostnames seront ajoutés via ConfigMapKeyRef dans le patch
       - op: add
-        path: /spec/rules/0/host
-        valueFrom:
-          configMapKeyRef:
-            name: app-config-prod  # Nom de la ConfigMap générée
-            key: BASEROW_PROD
-      - op: add
-        path: /spec/rules/1/host
-        valueFrom:
-          configMapKeyRef:
-            name: app-config-prod  # Nom de la ConfigMap générée
-            key: N8N_DOMAIN
-      - op: add
         path: /spec/tls
         value:
           - hosts:
-              - valueFrom:
-                  configMapKeyRef:
-                    name: app-config-prod
-                    key: BASEROW_DOMAIN
-              - valueFrom:
-                  configMapKeyRef:
-                    name: app-config-prod
-                    key: N8N_DOMAIN
+              - baserow.maxime-lenne.fr  # Repris de la ConfigMap
+              - n8n.maxime-lenne.fr  # Repris de la ConfigMap
             secretName: apps-tls-prod-cert
     target:
       kind: Ingress
       name: apps-ingress  # Cible l'Ingress de base
 
+  # Patch pour ajouter la section envFrom au déploiement Baserow
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom  # Ajouter la section envFrom
+        value:
+        - configMapRef:
+            name: app-config  # Nom de la ConfigMap générée par Kustomize
+    target:
+      kind: Deployment
+      name: baserow
+
+  # Patch pour ajouter la section envFrom au déploiement N8N
+  - patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom  # Ajouter la section envFrom
+        value:
+        - configMapRef:
+            name: app-config  # Nom de la ConfigMap générée par Kustomize
+    target:
+      kind: Deployment
+      name: n8n
+
 configMapGenerator:
-  - name: app-config-prod
+  - name: app-config
     literals:
       # Variables non sensibles spécifiques à prod (basé sur sample.env)
       - POSTGRES_USER=postgres
@@ -64,13 +68,14 @@ configMapGenerator:
       - N8N_DB_USER=n8n_user
       - BASEROW_DB_NAME=baserow_db
       - BASEROW_DB_USER=baserow_user
-      - BASEROW_DOMAIN=baserow.example.com
-      - N8N_DOMAIN=n8n.example.com
+      - BASEROW_DOMAIN=baserow.maxime-lenne.fr
+      - N8N_DOMAIN=n8n.maxime-lenne.fr
+      - WEBHOOK_URL=https://n8n.maxime-lenne.fr
       - INGRESS_CLASS=nginx
       - CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer  # Inclure pour cohérence si référencé dans base
       - CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
-      - SSL_REDIRECT=true  # Redirection SSL activée pour prod
-      - FORCE_SSL_REDIRECT=true
+      - SSL_REDIRECT=false  # Redirection SSL activée pour prod
+      - FORCE_SSL_REDIRECT=false
       - CERT_MANAGER_EMAIL=hello@maxime-lenne.fr
       - PROD_DOMAIN=maxime-lenne.fr  # Domaine racine pour référence
       - STAGING_DOMAIN=staging.maxime-lenne.fr  # Inclure pour cohérence si référencé dans base
@@ -88,3 +93,24 @@ configMapGenerator:
 #   - name: prod-secrets
 #     literals:
 #       - SECRET_KEY=supersecret-prod
+replacements:
+  - source:
+      kind: ConfigMap
+      name: app-config
+      fieldPath: data.BASEROW_DOMAIN
+    targets:
+      - select:
+          kind: Ingress
+          name: apps-ingress
+        fieldPaths:
+          - spec.rules.0.host
+  - source:
+      kind: ConfigMap
+      name: app-config
+      fieldPath: data.N8N_DOMAIN
+    targets:
+      - select:
+          kind: Ingress
+          name: apps-ingress
+        fieldPaths:
+          - spec.rules.1.host
