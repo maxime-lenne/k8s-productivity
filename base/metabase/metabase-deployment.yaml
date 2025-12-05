@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z postgresql 5432;
+              do
+                echo waiting for postgres;
+                sleep 2;
+              done;
+      containers:
+        - name: metabase
+          image: metabase/metabase:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MB_DB_TYPE
+              value: postgres
+            - name: MB_DB_DBNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_NAME
+            - name: MB_DB_PORT
+              value: "5432"
+            - name: MB_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_USER
+            - name: MB_DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_PASSWORD
+            - name: MB_DB_HOST
+              value: postgresql
+            - name: JAVA_TIMEZONE
+              value: "Europe/Paris"
+          volumeMounts:
+            - name: metabase-data
+              mountPath: /metabase-data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: metabase-data
+          persistentVolumeClaim:
+            claimName: metabase-data

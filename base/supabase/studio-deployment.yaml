@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-studio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-studio
+  template:
+    metadata:
+      labels:
+        app: supabase-studio
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z postgresql 5432;
+              do
+                echo waiting for postgres;
+                sleep 2;
+              done;
+      containers:
+        - name: studio
+          image: supabase/studio:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: STUDIO_PG_META_URL
+              value: "http://supabase-postgrest:3000"
+            - name: DEFAULT_ORGANIZATION_NAME
+              value: "Default Organization"
+            - name: DEFAULT_PROJECT_NAME
+              value: "Default Project"
+            - name: SUPABASE_URL
+              value: "http://supabase-kong:8000"
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: ANON_KEY
+            - name: SUPABASE_SERVICE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: SERVICE_ROLE_KEY
+            - name: LOGFLARE_API_KEY
+              value: "stub"
+            - name: LOGFLARE_URL
+              value: "http://localhost:4000"
+            - name: NEXT_PUBLIC_ENABLE_LOGS
+              value: "false"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

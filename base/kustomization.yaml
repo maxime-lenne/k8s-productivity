@@ -14,6 +14,32 @@ resources:
   - n8n/n8n-pvc.yaml
   - n8n/n8n-service.yaml
 
+  # Excalidraw
+  - excalidraw/excalidraw-deployment.yaml
+  - excalidraw/excalidraw-pvc.yaml
+  - excalidraw/excalidraw-service.yaml
+
+  # Metabase
+  - metabase/metabase-deployment.yaml
+  - metabase/metabase-pvc.yaml
+  - metabase/metabase-service.yaml
+
+  # Supabase
+  - supabase/supabase-secret.yaml
+  - supabase/kong-deployment.yaml
+  - supabase/kong-service.yaml
+  - supabase/postgrest-deployment.yaml
+  - supabase/postgrest-service.yaml
+  - supabase/gotrue-deployment.yaml
+  - supabase/gotrue-service.yaml
+  - supabase/storage-deployment.yaml
+  - supabase/storage-pvc.yaml
+  - supabase/storage-service.yaml
+  - supabase/realtime-deployment.yaml
+  - supabase/realtime-service.yaml
+  - supabase/studio-deployment.yaml
+  - supabase/studio-service.yaml
+
   # PostgreSQL
   - postgresql/postgresql-pvc.yaml
   - postgresql/postgresql-deployment.yaml
@@ -29,7 +55,7 @@ resources:
   # Ingress Nginx Configuration
   - ingress-nginx/ingress-nginx-configmap.yaml
 
-  # Application Ingress (Baserow & N8N)
+  # Application Ingress (Baserow, N8N, Excalidraw, Metabase, Supabase)
   - apps-ingress.yaml
 
   # Cert-Manager Issuers

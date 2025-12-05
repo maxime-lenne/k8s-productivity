@@ -26,3 +26,33 @@ spec:
                 name: n8n
                 port:
                   number: 80
+    - host: EXCALIDRAW_DOMAIN_PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: excalidraw
+                port:
+                  number: 80
+    - host: METABASE_DOMAIN_PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: metabase
+                port:
+                  number: 3000
+    - host: SUPABASE_DOMAIN_PLACEHOLDER
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: supabase-studio
+                port:
+                  number: 3001

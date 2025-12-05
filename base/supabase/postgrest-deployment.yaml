@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-postgrest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-postgrest
+  template:
+    metadata:
+      labels:
+        app: supabase-postgrest
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z postgresql 5432;
+              do
+                echo waiting for postgres;
+                sleep 2;
+              done;
+      containers:
+        - name: postgrest
+          image: postgrest/postgrest:v11.2.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PGRST_DB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_URI
+            - name: PGRST_DB_SCHEMAS
+              value: "public,storage,graphql_public"
+            - name: PGRST_DB_ANON_ROLE
+              value: "anon"
+            - name: PGRST_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: JWT_SECRET
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

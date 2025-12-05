@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supabase-realtime
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: supabase-realtime
+  template:
+    metadata:
+      labels:
+        app: supabase-realtime
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - 'sh'
+            - '-c'
+            - >
+              until nc -z postgresql 5432;
+              do
+                echo waiting for postgres;
+                sleep 2;
+              done;
+      containers:
+        - name: realtime
+          image: supabase/realtime:v2.25.35
+          ports:
+            - containerPort: 4000
+          env:
+            - name: PORT
+              value: "4000"
+            - name: DB_HOST
+              value: postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_NAME
+            - name: DB_AFTER_CONNECT_QUERY
+              value: "SET search_path TO _realtime"
+            - name: DB_ENC_KEY
+              value: "supabaserealtime"
+            - name: API_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: JWT_SECRET
+            - name: FLY_ALLOC_ID
+              value: "fly123"
+            - name: FLY_APP_NAME
+              value: "realtime"
+            - name: SECURE_CHANNELS
+              value: "true"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: JWT_SECRET
+            - name: SECRET_KEY_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: supabase-secret
+                  key: JWT_SECRET
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

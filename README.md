@@ -101,6 +101,18 @@ Ces étapes décrivent comment déployer un environnement en utilisant Kustomize
 
 ## Documentation détaillée
 
+- [Déploiement Local (Mac avec Docker Desktop)](docs/deploiement-local.md)
+    - [Prérequis](docs/deploiement-local.md#prérequis)
+    - [Installation des outils](docs/deploiement-local.md#installation-des-outils)
+    - [Configuration du cluster Kubernetes](docs/deploiement-local.md#configuration-du-cluster-kubernetes)
+    - [Configuration de kubectl](docs/deploiement-local.md#configuration-de-kubectl)
+    - [Installation des composants](docs/deploiement-local.md#installation-des-composants)
+    - [Configuration des secrets](docs/deploiement-local.md#configuration-des-secrets)
+    - [Déploiement des applications](docs/deploiement-local.md#déploiement-des-applications)
+    - [Configuration DNS locale et SSL](docs/deploiement-local.md#configuration-dns-locale-et-ssl) ⭐ **Script automatique disponible**
+    - [Accès aux services](docs/deploiement-local.md#accès-aux-services)
+    - [Vérification du déploiement](docs/deploiement-local.md#vérification-du-déploiement)
+    - [Dépannage](docs/deploiement-local.md#dépannage)
 - [Déploiement & Scaleway](docs/deploiement-scaleway.md)
     - [Prérequis](docs/deploiement-scaleway.md#prérequis)
     - [Configuration de kubectl pour Scaleway](docs/deploiement-scaleway.md#configuration-de-kubectl-pour-scaleway)

@@ -34,3 +34,46 @@ data:
     if [ -n "$BASEROW_DB_NAME" ]; then
         create_database $BASEROW_DB_NAME $BASEROW_DB_USER $BASEROW_DB_PASSWORD
     fi
+
+    if [ -n "$METABASE_DB_NAME" ]; then
+        create_database $METABASE_DB_NAME $METABASE_DB_USER $METABASE_DB_PASSWORD
+    fi
+
+    if [ -n "$SUPABASE_DB_NAME" ]; then
+        create_database $SUPABASE_DB_NAME $SUPABASE_DB_USER $SUPABASE_DB_PASSWORD
+        # Créer les rôles Supabase nécessaires
+        echo "Creating Supabase roles in database '$SUPABASE_DB_NAME'"
+        psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -d "$SUPABASE_DB_NAME" <<-EOSQL
+            -- Créer le rôle anon (utilisateur anonyme)
+            DO \$\$
+            BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+                    CREATE ROLE anon NOLOGIN NOINHERIT;
+                END IF;
+            END
+            \$\$;
+
+            -- Créer le rôle authenticated (utilisateur authentifié)
+            DO \$\$
+            BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+                    CREATE ROLE authenticated NOLOGIN NOINHERIT;
+                END IF;
+            END
+            \$\$;
+
+            -- Créer le rôle service_role (rôle de service)
+            DO \$\$
+            BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+                    CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
+                END IF;
+            END
+            \$\$;
+
+            -- Accorder les permissions de base
+            GRANT anon TO $SUPABASE_DB_USER;
+            GRANT authenticated TO $SUPABASE_DB_USER;
+            GRANT service_role TO $SUPABASE_DB_USER;
+    EOSQL
+    fi
