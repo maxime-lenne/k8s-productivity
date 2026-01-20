@@ -35,18 +35,30 @@ echo -e "${GREEN}✓ Cluster Kubernetes accessible${NC}"
 echo ""
 echo -e "${YELLOW}📝 Configuration de /etc/hosts...${NC}"
 
-HOSTS_ENTRIES="# Kubernetes local services
-127.0.0.1	excalidraw.local
-127.0.0.1	baserow.local
-127.0.0.1	n8n.local
-127.0.0.1	metabase.local
-127.0.0.1	supabase.local"
+# Vérifier si les entrées existent déjà avec la bonne IP (127.0.0.1)
+HOSTS_CORRECT=$(grep -E "127\.0\.0\.1.*(baserow|n8n|excalidraw|metabase|supabase)\.local" /etc/hosts 2>/dev/null || true)
 
-if grep -q "excalidraw.local" /etc/hosts 2>/dev/null; then
-    echo -e "${GREEN}✓ /etc/hosts déjà configuré${NC}"
+if [ -n "$HOSTS_CORRECT" ]; then
+    # Vérifier s'il y a aussi des entrées incorrectes (255.255.255.255 ou autres IP)
+    HOSTS_INCORRECT=$(grep -E "(255\.255\.255\.255|^[^#].*[^127\.0\.0\.1].*\.local)" /etc/hosts 2>/dev/null | grep -E "(baserow|n8n|excalidraw|metabase|supabase)\.local" || true)
+    
+    if [ -n "$HOSTS_INCORRECT" ]; then
+        echo "   Nettoyage des anciennes entrées incorrectes dans /etc/hosts..."
+        # Supprimer toutes les entrées .local (y compris celles avec 255.255.255.255)
+        sudo sed -i '' '/baserow\.local\|n8n\.local\|excalidraw\.local\|metabase\.local\|supabase\.local/d' /etc/hosts
+        # Ajouter les entrées correctes
+        echo "127.0.0.1 baserow.local n8n.local excalidraw.local metabase.local supabase.local" | sudo tee -a /etc/hosts > /dev/null
+        echo -e "${GREEN}✓ /etc/hosts corrigé${NC}"
+    else
+        echo -e "${GREEN}✓ /etc/hosts déjà configuré correctement${NC}"
+    fi
 else
+    echo "   Nettoyage des anciennes entrées dans /etc/hosts..."
+    # Supprimer toutes les entrées .local existantes (y compris celles avec 255.255.255.255)
+    sudo sed -i '' '/baserow\.local\|n8n\.local\|excalidraw\.local\|metabase\.local\|supabase\.local/d' /etc/hosts
+    
     echo "   Ajout des entrées dans /etc/hosts (nécessite votre mot de passe)..."
-    if sudo bash -c "echo '$HOSTS_ENTRIES' >> /etc/hosts"; then
+    if echo "127.0.0.1 baserow.local n8n.local excalidraw.local metabase.local supabase.local" | sudo tee -a /etc/hosts > /dev/null; then
         echo -e "${GREEN}✓ /etc/hosts configuré${NC}"
     else
         echo -e "${RED}❌ Impossible de modifier /etc/hosts${NC}"

@@ -25,28 +25,28 @@ patches:
           nginx.ingress.kubernetes.io/ssl-redirect: "false"
       - op: add
         path: /spec/rules/0/host
-        value: baserow.local
+        value: baserow.white-wood.local
       - op: add
         path: /spec/rules/1/host
-        value: n8n.local
+        value: n8n.white-wood.local
       - op: add
         path: /spec/rules/2/host
-        value: excalidraw.local
+        value: excalidraw.white-wood.local
       - op: add
         path: /spec/rules/3/host
-        value: metabase.local
+        value: metabase.white-wood.local
       - op: add
         path: /spec/rules/4/host
-        value: supabase.local
+        value: supabase.white-wood.local
       - op: add
         path: /spec/tls
         value:
           - hosts:
-              - baserow.local
-              - n8n.local
-              - excalidraw.local
-              - metabase.local
-              - supabase.local
+              - baserow.white-wood.local
+              - n8n.white-wood.local
+              - excalidraw.white-wood.local
+              - metabase.white-wood.local
+              - supabase.white-wood.local
             secretName: apps-tls-local-cert
     target:
       kind: Ingress
@@ -62,17 +62,17 @@ configMapGenerator:
       - N8N_DB_USER=n8n_user
       - BASEROW_DB_NAME=baserow_db
       - BASEROW_DB_USER=baserow_user
-      - BASEROW_DOMAIN=baserow.local
-      - BASEROW_PUBLIC_URL=https://baserow.local
-      - PUBLIC_BACKEND_URL=https://baserow.local
-      - PUBLIC_WEB_FRONTEND_URL=https://baserow.local
+      - BASEROW_DOMAIN=baserow.white-wood.local
+      - BASEROW_PUBLIC_URL=https://baserow.white-wood.local
+      - PUBLIC_BACKEND_URL=https://baserow.white-wood.local
+      - PUBLIC_WEB_FRONTEND_URL=https://baserow.white-wood.local
       - BASEROW_DISABLE_PUBLIC_URL_CHECK=true
       - BASEROW_BUILDER_DOMAINS=
-      - N8N_DOMAIN=n8n.local
-      - EXCALIDRAW_DOMAIN=excalidraw.local
-      - METABASE_DOMAIN=metabase.local
-      - SUPABASE_DOMAIN=supabase.local
-      - WEBHOOK_URL=https://n8n.local
+      - N8N_DOMAIN=n8n.white-wood.local
+      - EXCALIDRAW_DOMAIN=excalidraw.white-wood.local
+      - METABASE_DOMAIN=metabase.white-wood.local
+      - SUPABASE_DOMAIN=supabase.white-wood.local
+      - WEBHOOK_URL=https://n8n.white-wood.local
       - CERT_MANAGER_LOCAL_ISSUER=selfsigned-issuer  # Inclure pour cohérence si référencé dans base
       - CERT_MANAGER_PROD_ISSUER=letsencrypt-prod
       - SSL_REDIRECT=false  # Redirection SSL activée pour prod
