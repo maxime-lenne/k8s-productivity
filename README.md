@@ -113,6 +113,10 @@ Ces étapes décrivent comment déployer un environnement en utilisant Kustomize
     - [Accès aux services](docs/deploiement-local.md#accès-aux-services)
     - [Vérification du déploiement](docs/deploiement-local.md#vérification-du-déploiement)
     - [Dépannage](docs/deploiement-local.md#dépannage)
+- [Accès réseau local](docs/acces-reseau-local.md) ⭐ **Nouveau**
+    - [Configuration automatique avec dnsmasq et port-forwarding](docs/acces-reseau-local.md#configuration-automatique)
+    - [Accès depuis d'autres machines du réseau](docs/acces-reseau-local.md#accès-depuis-dautres-machines)
+    - [Scripts disponibles](docs/acces-reseau-local.md#scripts-disponibles)
 - [Déploiement & Scaleway](docs/deploiement-scaleway.md)
     - [Prérequis](docs/deploiement-scaleway.md#prérequis)
     - [Configuration de kubectl pour Scaleway](docs/deploiement-scaleway.md#configuration-de-kubectl-pour-scaleway)
