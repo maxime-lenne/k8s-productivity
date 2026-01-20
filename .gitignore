@@ -39,7 +39,7 @@ kubeconfig
 
 .idea/
 .aider*
-
-chatGPT/
+.cursor/
+.claude/
 
 make/
