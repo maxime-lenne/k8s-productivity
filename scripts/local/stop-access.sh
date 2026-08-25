@@ -1,4 +1,6 @@
 #!/bin/bash
+# scripts/local/stop-access.sh
+# Script pour arrêter l'accès aux services Kubernetes
 
 set -e
 
@@ -8,13 +10,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}🛑 Arrêt de l'accès réseau aux services Kubernetes${NC}"
+echo -e "${YELLOW}🛑 Arrêt de l'accès aux services Kubernetes${NC}"
 echo ""
 
 LOG_DIR="/tmp/k8s-logs"
-PID_FILE="$LOG_DIR/network-port-forward.pid"
+PID_FILE="$LOG_DIR/port-forward.pid"
 
-# Arrêter le port-forward réseau
+# Arrêter le port-forward via le fichier PID
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")
     if ps -p $PID > /dev/null 2>&1; then
@@ -27,7 +29,7 @@ if [ -f "$PID_FILE" ]; then
         rm -f "$PID_FILE"
     fi
 else
-    # Essayer de trouver et tuer tous les port-forwards
+    # Rechercher et arrêter tous les port-forwards
     PORT_FORWARD_PIDS=$(pgrep -f "kubectl port-forward.*ingress-nginx-controller" || true)
 
     if [ -n "$PORT_FORWARD_PIDS" ]; then
@@ -40,10 +42,10 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}✓ Service réseau arrêté${NC}"
+echo -e "${GREEN}✓ Service arrêté${NC}"
 echo ""
-echo "📝 Note :"
-echo "   • dnsmasq continue de fonctionner en arrière-plan"
+echo "📝 Notes :"
+echo "   • dnsmasq continue de fonctionner (si installé)"
 echo "   • Pour arrêter dnsmasq : sudo brew services stop dnsmasq"
-echo "   • Pour redémarrer l'accès réseau : sudo ./scripts/local/setup-network-access.sh"
+echo "   • Pour redémarrer : ./scripts/local/setup-access.sh [--network]"
 echo ""
