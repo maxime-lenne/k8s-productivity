@@ -37,6 +37,9 @@ kubeconfig
 # scaleway
 /environments/*/kubeconfig-k8s-productivity*.yaml
 
+# local cluster (contient une clé client, ne doit jamais être committé)
+/environments/*/kubeconfig-local.yaml
+
 .idea/
 .aider*
 .cursor/
