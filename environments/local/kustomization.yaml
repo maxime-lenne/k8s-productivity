@@ -7,7 +7,9 @@ kind: Kustomization
 resources:
   - ../../base
   # Inclure le SealedSecret pour les secrets specifiques a local
-  - secrets-local.yaml
+  # Commenté car le contrôleur Sealed Secrets n'est pas installé en local
+  # Les secrets sont créés manuellement
+  # - secrets-local.yaml
 
 # Définir le namespace pour cet environnement
 namespace: default

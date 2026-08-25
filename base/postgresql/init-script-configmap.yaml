@@ -42,8 +42,13 @@ data:
     if [ -n "$SUPABASE_DB_NAME" ]; then
         create_database $SUPABASE_DB_NAME $SUPABASE_DB_USER $SUPABASE_DB_PASSWORD
         # Créer les rôles Supabase nécessaires
-        echo "Creating Supabase roles in database '$SUPABASE_DB_NAME'"
+        echo "Creating Supabase roles and schemas in database '$SUPABASE_DB_NAME'"
         psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" -d "$SUPABASE_DB_NAME" <<-EOSQL
+            -- Créer le schéma auth pour GoTrue
+            CREATE SCHEMA IF NOT EXISTS auth;
+            GRANT ALL ON SCHEMA auth TO $SUPABASE_DB_USER;
+            ALTER SCHEMA auth OWNER TO $SUPABASE_DB_USER;
+
             -- Créer le rôle anon (utilisateur anonyme)
             DO \$\$
             BEGIN

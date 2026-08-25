@@ -1,4 +1,6 @@
 ---
+# Image officielle : nginx qui sert les fichiers statiques (pas de /usr/src/app/data).
+# Voir https://hub.docker.com/r/excalidraw/excalidraw
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,9 +23,18 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
-          volumeMounts:
-            - name: excalidraw-data
-              mountPath: /usr/src/app/data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               memory: "256Mi"
@@ -31,7 +42,3 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-      volumes:
-        - name: excalidraw-data
-          persistentVolumeClaim:
-            claimName: excalidraw-data

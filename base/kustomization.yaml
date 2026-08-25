@@ -14,9 +14,8 @@ resources:
   - n8n/n8n-pvc.yaml
   - n8n/n8n-service.yaml
 
-  # Excalidraw
+  # Excalidraw (image officielle statique, pas de PVC)
   - excalidraw/excalidraw-deployment.yaml
-  - excalidraw/excalidraw-pvc.yaml
   - excalidraw/excalidraw-service.yaml
 
   # Metabase

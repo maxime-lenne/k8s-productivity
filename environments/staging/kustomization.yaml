@@ -62,6 +62,49 @@ patches:
       kind: Deployment
       name: n8n
 
+  # Réduction des ressources pour staging (nœud avec peu de mémoire, ex. DEV1-S/M)
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+    target:
+      kind: Deployment
+      name: postgresql
+
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+    target:
+      kind: Deployment
+      name: baserow
+
+  - patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+    target:
+      kind: Deployment
+      name: metabase
+
 configMapGenerator:
   - name: app-config
     literals:
