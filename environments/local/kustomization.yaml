@@ -54,6 +54,16 @@ patches:
       kind: Ingress
       name: apps-ingress  # Cible l'Ingress de base
 
+  # sbs-default (Scaleway Block Storage) n'existe pas en local : on bascule
+  # sur la StorageClass par défaut du cluster local (rancher.io/local-path)
+  - patch: |
+      - op: replace
+        path: /spec/storageClassName
+        value: standard
+    target:
+      kind: PersistentVolumeClaim
+      name: baserow-data|n8n-data|metabase-data|postgresql-data|supabase-storage-data
+
 configMapGenerator:
   - name: app-config
     literals:
