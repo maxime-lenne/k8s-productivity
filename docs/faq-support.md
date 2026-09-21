@@ -54,7 +54,7 @@ Non, pas avec la configuration locale. Pour un accès externe :
 
 ### L'accès survit-il à un redémarrage ?
 
-Oui. Il n'y a plus de `port-forward` : les ports 80 et 444 sont publiés par le load balancer de Docker Desktop, qui est recréé au démarrage du cluster. Si le port HTTPS ne répond plus, relancez `./scripts/local/setup-access.sh` (il remet le Service ingress-nginx sur le port 444).
+Oui. Il n'y a plus de `port-forward` : les ports 8080 et 444 sont publiés par le load balancer de Docker Desktop, qui est recréé au démarrage du cluster. Si le port HTTPS ne répond plus, relancez `./scripts/local/setup-access.sh` (il remet le Service ingress-nginx sur le port 444).
 
 ---
 
@@ -278,7 +278,7 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 #### Les services ne sont pas accessibles depuis le réseau
 
 ```bash
-# Vérifier que le load balancer Docker publie les ports 80 et 444
+# Vérifier que le load balancer Docker publie les ports 8080 et 444
 docker ps --format '{{.Names}} {{.Ports}}' | grep kindccm
 
 # Tester la connectivité

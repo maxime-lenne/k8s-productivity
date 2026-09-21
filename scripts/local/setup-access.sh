@@ -6,8 +6,8 @@
 #   --help, -h                 Affiche cette aide
 #
 # Les services sont exposés par le load balancer de Docker Desktop (Service
-# ingress-nginx-controller de type LoadBalancer) : HTTP sur 80, HTTPS sur 444
-# (443 est déjà utilisé sur la machine). Aucun port-forward n'est nécessaire.
+# ingress-nginx-controller de type LoadBalancer) : HTTP sur 8080, HTTPS sur 444
+# (80 et 443 sont déjà utilisés sur la machine). Aucun port-forward n'est nécessaire.
 #
 # Sans option, la résolution DNS des domaines *.white-wood.local se fait via /etc/hosts
 
@@ -24,9 +24,11 @@ NC='\033[0m' # No Color
 NETWORK_MODE=false
 
 # Ports exposés par le Service ingress-nginx-controller (et donc publiés sur la
-# machine par le load balancer de Docker Desktop). 443 étant déjà utilisé sur la
-# machine, tout le cluster local passe par 444 : https://<app>.white-wood.local:444
-HTTP_SERVICE_PORT=80
+# machine par le load balancer de Docker Desktop). Les ports standards 80 et 443
+# sont déjà utilisés sur la machine (projet houblons-nous : tunnel Cloudflare vers
+# localhost:80, container publiant 80 et 443) : le cluster local passe par
+# 8080 (HTTP) et 444 (HTTPS), ex. https://<app>.white-wood.local:444
+HTTP_SERVICE_PORT=8080
 HTTPS_SERVICE_PORT=444
 
 # Parser les arguments
@@ -44,8 +46,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --help, -h                 Affiche cette aide"
             echo ""
             echo "Les services sont exposés par le load balancer de Docker Desktop :"
-            echo "  HTTP  : $HTTP_SERVICE_PORT"
-            echo "  HTTPS : $HTTPS_SERVICE_PORT (le 443 est déjà utilisé sur la machine)"
+            echo "  HTTP  : $HTTP_SERVICE_PORT (le 80 est utilisé par houblons-nous)"
+            echo "  HTTPS : $HTTPS_SERVICE_PORT (le 443 est utilisé par houblons-nous)"
             echo ""
             echo "Sans option, la résolution DNS se fait via /etc/hosts (cette machine uniquement)"
             echo ""
@@ -162,18 +164,29 @@ if ! kubectl get namespace ingress-nginx &>/dev/null; then
         --timeout=90s
 fi
 
-# Faire écouter le Service ingress-nginx sur $HTTPS_SERVICE_PORT au lieu de 443.
-# Le manifeste upstream (re)positionne 443 : on le corrige après chaque installation.
-HTTPS_PORT_INDEX=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
-    -o jsonpath='{range .spec.ports[*]}{.name}{"\n"}{end}' | grep -n '^https$' | cut -d: -f1)
-CURRENT_HTTPS_SVC_PORT=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
-    -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
-if [ -n "$HTTPS_PORT_INDEX" ] && [ "$CURRENT_HTTPS_SVC_PORT" != "$HTTPS_SERVICE_PORT" ]; then
-    echo "   Passage du port HTTPS du Service ingress-nginx : $CURRENT_HTTPS_SVC_PORT -> $HTTPS_SERVICE_PORT"
-    kubectl patch svc ingress-nginx-controller -n ingress-nginx --type=json \
-        -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/$((HTTPS_PORT_INDEX - 1))/port\",\"value\":$HTTPS_SERVICE_PORT}]"
+# Faire écouter le Service ingress-nginx sur $HTTP_SERVICE_PORT / $HTTPS_SERVICE_PORT
+# au lieu de 80 / 443. Le manifeste upstream (re)positionne 80 et 443 : on le
+# corrige après chaque installation.
+LB_NEEDS_RECREATE=false
+ensure_service_port() {
+    local port_name=$1 wanted=$2 index current
+    index=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+        -o jsonpath='{range .spec.ports[*]}{.name}{"\n"}{end}' | grep -n "^${port_name}\$" | cut -d: -f1)
+    current=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+        -o jsonpath="{.spec.ports[?(@.name==\"${port_name}\")].port}")
+    if [ -n "$index" ] && [ "$current" != "$wanted" ]; then
+        echo "   Port $port_name du Service ingress-nginx : $current -> $wanted"
+        kubectl patch svc ingress-nginx-controller -n ingress-nginx --type=json \
+            -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/$((index - 1))/port\",\"value\":$wanted}]"
+        LB_NEEDS_RECREATE=true
+    fi
+}
+ensure_service_port http "$HTTP_SERVICE_PORT"
+ensure_service_port https "$HTTPS_SERVICE_PORT"
+
+if [ "$LB_NEEDS_RECREATE" = true ]; then
     # Le load balancer Docker Desktop (kindccm-*) publie les ports à sa création :
-    # on le supprime, il est recréé automatiquement avec le nouveau port.
+    # on le supprime, il est recréé automatiquement avec les nouveaux ports.
     LB_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep '^kindccm-' || true)
     if [ -n "$LB_CONTAINER" ]; then
         echo "   Recréation du load balancer Docker ($LB_CONTAINER)..."

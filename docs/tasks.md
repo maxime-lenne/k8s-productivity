@@ -141,7 +141,7 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
 
 ## Local Cluster Stabilization (follow-up of 2026-09-21)
 
-Context: the local Docker Desktop cluster was crash-looping (Docker VM at 8 GB with 116 % memory limits, swap full). The VM is now at 16 GB / 8 CPU / 2 GB swap, PVs are `Retain`, and a manual backup exists in `~/k8s-backups/20260921-115518/`. HTTPS is now exposed on port **444** (443 is already used on the machine).
+Context: the local Docker Desktop cluster was crash-looping (Docker VM at 8 GB with 116 % memory limits, swap full). The VM is now at 16 GB / 8 CPU / 2 GB swap, PVs are `Retain`, and a manual backup exists in `~/k8s-backups/20260921-115518/`. HTTPS is now exposed on port **444** and HTTP on **8080** (80 and 443 are used by the `houblons-nous` project on the same machine).
 
 26. [ ] Push the local commits (branch `add-excalidraw-metabase-supabase`) and open a PR
     - [x] Commit the pending changes (backup CronJob + Redis PVC, port 444 + kong/realtime limits, shared Claude settings, port-forward removal)
@@ -153,10 +153,12 @@ Context: the local Docker Desktop cluster was crash-looping (Docker VM at 8 GB w
     - [ ] If a pod restarts, inspect `lastState` (OOMKilled vs. probe failure) before changing limits
     - [ ] Install metrics-server (`kubectl top` currently fails: "Metrics API not available")
 
-28. [ ] Clean up the standalone Docker `baserow` container (outside Kubernetes)
-    - [ ] Check that its data (volume `baserow_data`) is not different from the Baserow running in k8s
-    - [ ] Remove the container once confirmed (`docker rm baserow`), keep the volume until the check is done
-    - [ ] Do NOT run `docker system prune` / `docker volume prune` (volumes `baserow_data` and `baudelet-dev_postgres_data` look unused but may hold data)
+28. [ ] Keep the local cluster from colliding with the `houblons-nous` project (other project, same machine)
+    - [x] The Docker container `baserow` is NOT a duplicate: it is `houblons-nous` (compose project `houblon-nous`, `~/Documents_non_icloud/workspace_python/houblon-nous`), served at `https://houblons-nous.white-wood.tech` through a Cloudflare tunnel (`cloudflared`) whose origin is `http://localhost:80`. Never stop/remove it from this repo
+    - [x] It publishes host ports 80 and 443, so the local cluster must not: it uses 8080 (HTTP) and 444 (HTTPS)
+    - [ ] Its container was left without any network after the Docker Desktop restart (no published port, tunnel gets a 404): recreate it from its project with `docker compose up -d --force-recreate` (data is on the host bind mount `data/db/data`, not in the container)
+    - [ ] Add a check in `setup-access.sh` that warns if a container other than the load balancer publishes 8080/444
+    - [ ] Do NOT run `docker system prune` / `docker volume prune` (volume `baserow_data` belongs to houblons-nous; `baudelet-dev_postgres_data` looks unused but may hold data)
 
 29. [ ] Make backups survive the cluster
     - [ ] Copy dumps out of the `postgres-backup-data` PVC (it is local to the cluster) to the Mac or remote storage
@@ -169,7 +171,7 @@ Context: the local Docker Desktop cluster was crash-looping (Docker VM at 8 GB w
     - [ ] Create a `Retain` StorageClass for local and use it in the local overlay (PVC `storageClassName` is immutable: plan a migration)
 
 31. [ ] Finish the port 444 migration
-    - [x] Run `setup-access.sh` end to end in local mode (`kubectl port-forward` removed: the Docker Desktop load balancer publishes 80/444 and the script only checks it)
+    - [x] Run `setup-access.sh` end to end in local mode (`kubectl port-forward` removed: the Docker Desktop load balancer publishes 8080/444 and the script only checks it)
     - [ ] The load balancer listens on all interfaces, so "local" mode is no longer restricted to this machine: decide whether that is acceptable (macOS firewall or another approach otherwise)
     - [ ] `scripts/local/stop-access.sh` only kills leftover port-forwards now and has nothing left to stop: delete it (and its mentions in README / docs) or repurpose it
     - [ ] Verify `--network` mode (dnsmasq + `0.0.0.0`) with port 444 from another device

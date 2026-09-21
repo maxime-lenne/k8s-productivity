@@ -150,7 +150,7 @@ kubectl apply -k environments/<environnement>/
 | **Metabase** | Business Intelligence | 444 |
 | **Supabase** | Backend-as-a-Service | 444 |
 
-> En local, tout passe par le port **444** (`https://<service>.white-wood.local:444`) car le 443 est déjà utilisé. En staging/prod (Scaleway), le port reste 443.
+> En local, tout passe par le port **444** (`https://<service>.white-wood.local:444`) car le 443 est déjà utilisé (le HTTP est sur 8080 car le 80 l'est aussi). En staging/prod (Scaleway), le port reste 443.
 
 ---
 
@@ -166,7 +166,7 @@ kubectl apply -k environments/<environnement>/
 sudo ./scripts/local/setup-access.sh --network
 ```
 
-**Note** : il n'y a plus de `port-forward`. Les services sont exposés par le load balancer de Docker Desktop (Service `ingress-nginx-controller`) : HTTP sur **80** et HTTPS sur **444** (le 443 est déjà utilisé). Le script vérifie que ces ports répondent et affiche les URLs.
+**Note** : il n'y a plus de `port-forward`. Les services sont exposés par le load balancer de Docker Desktop (Service `ingress-nginx-controller`) : HTTP sur **8080** et HTTPS sur **444** (les ports 80 et 443 sont déjà utilisés par un autre projet). Le script vérifie que ces ports répondent et affiche les URLs.
 
 ### DNS réseau local
 
