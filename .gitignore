@@ -43,6 +43,6 @@ kubeconfig
 .idea/
 .aider*
 .cursor/
-.claude/
+.claude/settings.local.json
 
 make/
