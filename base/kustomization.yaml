@@ -50,6 +50,12 @@ resources:
   # Redis
   - redis/redis-deployment.yaml
   - redis/redis-service.yaml
+  - redis/redis-pvc.yaml
+
+  # PostgreSQL Backup CronJob
+  - backup/backup-pvc.yaml
+  - backup/backup-rbac.yaml
+  - backup/postgres-backup-cronjob.yaml
 
   # Ingress Nginx Configuration
   - ingress-nginx/ingress-nginx-configmap.yaml
@@ -60,3 +66,8 @@ resources:
   # Cert-Manager Issuers
   - cert-managers/letsencrypt-issuer.yaml
   - cert-managers/self-signed-issuer.yaml
+
+configMapGenerator:
+  - name: postgres-backup-script
+    files:
+      - backup/postgres-backup.sh

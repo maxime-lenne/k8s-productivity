@@ -280,41 +280,27 @@ Le script `postgres-restore.sh` restaure les bases de données :
 
 ### Planification des backups (CronJob)
 
-Pour automatiser les sauvegardes, créez un CronJob Kubernetes :
+Les sauvegardes sont automatisées via un CronJob déployé par défaut dans tous les environnements, défini dans `base/backup/` :
 
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: postgres-backup
-spec:
-  schedule: "0 1 * * *"  # Tous les jours à 1h00
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: postgres-backup
-            image: bitnami/kubectl:latest
-            command:
-            - /bin/bash
-            - -c
-            - /scripts/postgres-backup.sh
-            volumeMounts:
-            - name: backup-scripts
-              mountPath: /scripts
-            - name: backup-volume
-              mountPath: /backups
-          restartPolicy: OnFailure
-          volumes:
-          - name: backup-scripts
-            configMap:
-              name: backup-scripts
-              defaultMode: 0755
-          - name: backup-volume
-            persistentVolumeClaim:
-              claimName: postgres-backup-pvc
+- `base/backup/postgres-backup-cronjob.yaml` : le CronJob (planifié tous les jours à 1h00, `0 1 * * *`), qui exécute `postgres-backup.sh`
+- `base/backup/backup-pvc.yaml` : le PVC `postgres-backup-data` (10Gi, `storageClassName: sbs-default`) où sont stockés les dumps
+- `base/backup/backup-rbac.yaml` : le `ServiceAccount`/`Role`/`RoleBinding` `postgres-backup`, qui autorise uniquement `kubectl exec` sur les pods du namespace (nécessaire au script pour lancer `pg_dump` dans le pod PostgreSQL)
+- `base/backup/postgres-backup.sh` : le script de backup lui-même (source canonique ; `scripts/backup/postgres-backup.sh` est un lien symbolique vers ce fichier pour un usage manuel identique en dehors du cluster)
+
+Le CronJob s'exécute dans le namespace de l'environnement (`default` en local, `staging`, `prod`) via la Downward API, donc aucune configuration supplémentaire n'est nécessaire par environnement.
+
+**Vérifier le CronJob déployé** :
+```bash
+kubectl get cronjob postgres-backup
+kubectl get jobs -l job-name=postgres-backup  # jobs déclenchés
 ```
+
+**Déclencher une exécution manuelle** (sans attendre le planning) :
+```bash
+kubectl create job --from=cronjob/postgres-backup postgres-backup-manual-$(date +%s)
+```
+
+**Limite connue** : les dumps sont stockés sur le PVC `postgres-backup-data`, dans le même namespace que le reste de l'application. Cela protège contre la perte accidentelle de `postgresql-data` (corruption, suppression du mauvais PVC, erreur applicative), mais **pas** contre une suppression complète du namespace (`kubectl delete -k environments/<env>/`, utilisé par exemple par `scripts/staging/recreate-staging.sh`) : ce PVC est supprimé en même temps que les autres. Pour une durabilité réellement indépendante du cycle de vie du cluster, il faut soit continuer à exécuter `scripts/backup/postgres-backup.sh` manuellement depuis un poste externe avant toute opération destructive, soit faire évoluer le CronJob pour pousser les dumps vers un stockage objet externe (ex. Scaleway Object Storage) plutôt que vers un PVC in-cluster.
 
 ### Bonnes pratiques de backup
 

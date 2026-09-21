@@ -352,6 +352,20 @@ export KUBECONFIG=./environments/staging/kubeconfig-k8s-productivity.yaml
 
 Le script supprime les ressources staging, recrée le namespace si besoin, puis réapplique `kubectl apply -k environments/staging/ --validate=false`. Les données du namespace staging (PVC, etc.) sont perdues.
 
+### StorageClass et politique de rétention des volumes
+
+Tous les PVC du projet (`postgresql-data`, `baserow-data`, `n8n-data`, `metabase-data`, `supabase-storage-data`, `redis-data`, `postgres-backup-data`) utilisent `storageClassName: sbs-default` en staging/prod, qui correspond à du **Scaleway Block Storage** (provisioner `csi.scaleway.com`).
+
+Vérifié sur le cluster staging (`kubectl get storageclass`) :
+
+```
+NAME                    PROVISIONER        RECLAIMPOLICY   VOLUMEBINDINGMODE
+sbs-default (default)   csi.scaleway.com   Delete          WaitForFirstConsumer
+sbs-default-retain      csi.scaleway.com   Retain          WaitForFirstConsumer
+```
+
+`sbs-default` a `reclaimPolicy: Delete` : supprimer un PVC (ou tout le namespace via `kubectl delete -k` / `recreate-staging.sh`) supprime aussi le disque Scaleway sous-jacent, sans possibilité de récupération. Scaleway fournit déjà une StorageClass `sbs-default-retain` (même driver, `reclaimPolicy: Retain`) qui conserve le disque même après suppression du PVC — le disque reste facturé et doit être nettoyé manuellement, mais les données ne sont pas perdues immédiatement. À envisager pour `postgresql-data` en prod si on veut un filet de sécurité supplémentaire contre une suppression accidentelle, en plus des backups applicatifs (voir [Certificats & Secrets](./certificats-secrets.md#backup-et-restore-postgresql)).
+
 ---
 
 ## Gestion multi-environnement
