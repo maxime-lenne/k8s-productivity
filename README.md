@@ -28,15 +28,17 @@ Environnement Kubernetes complet pour déployer des outils de productivité (Bas
 ### Environnement local (Mac)
 
 ```bash
-# Appliquer la configuration Kustomize
-kubectl apply -k environments/local/
-
-# Démarrer l'accès aux services
+# 1. Installer les prérequis du cluster (ingress-nginx, cert-manager) et démarrer l'accès aux services
 ./scripts/local/setup-access.sh
 
 # Pour l'accès depuis d'autres appareils du réseau
 sudo ./scripts/local/setup-access.sh --network
+
+# 2. Appliquer la configuration Kustomize
+kubectl apply -k environments/local/
 ```
+
+> ⚠️ `setup-access.sh` doit être lancé **avant** `kubectl apply -k` : il installe cert-manager et ingress-nginx, dont dépendent les ressources `ClusterIssuer` et `Ingress` du kustomization local.
 
 ### Environnement cloud (Scaleway)
 
@@ -140,13 +142,15 @@ kubectl apply -k environments/<environnement>/
 
 ## Services déployés
 
-| Service | Description | Port par défaut |
-|---------|-------------|-----------------|
-| **Baserow** | Base de données no-code | 443 |
-| **N8N** | Automatisation de workflows | 443 |
-| **Excalidraw** | Tableau blanc collaboratif | 443 |
-| **Metabase** | Business Intelligence | 443 |
-| **Supabase** | Backend-as-a-Service | 443 |
+| Service | Description | Port HTTPS (local) |
+|---------|-------------|--------------------|
+| **Baserow** | Base de données no-code | 444 |
+| **N8N** | Automatisation de workflows | 444 |
+| **Excalidraw** | Tableau blanc collaboratif | 444 |
+| **Metabase** | Business Intelligence | 444 |
+| **Supabase** | Backend-as-a-Service | 444 |
+
+> En local, tout passe par le port **444** (`https://<service>.white-wood.local:444`) car le 443 est déjà utilisé. En staging/prod (Scaleway), le port reste 443.
 
 ---
 
@@ -174,7 +178,7 @@ K8S_HTTP_PORT=8080 K8S_HTTPS_PORT=8443 ./scripts/local/setup-access.sh
 ./scripts/local/stop-access.sh
 ```
 
-**Note** : Si les ports 80/443 (ou 8080/8443) sont déjà utilisés, le script détecte automatiquement des ports alternatifs disponibles.
+**Note** : le port HTTPS par défaut est **444**. Si un port par défaut est déjà utilisé, le script détecte automatiquement un port alternatif disponible (les URLs affichées à la fin en tiennent compte).
 
 ### DNS réseau local
 

@@ -4,7 +4,7 @@
 # Usage: ./setup-access.sh [OPTIONS]
 #   --network, -n              Configure l'accès réseau (dnsmasq + écoute sur 0.0.0.0)
 #   --http-port PORT           Port HTTP local (défaut: 80 avec sudo, 8080 sans sudo)
-#   --https-port PORT          Port HTTPS local (défaut: 443 avec sudo, 8443 sans sudo)
+#   --https-port PORT          Port HTTPS local (défaut: 444, le 443 est réservé à un autre usage)
 #   --help, -h                 Affiche cette aide
 #
 # Variables d'environnement:
@@ -26,6 +26,11 @@ NC='\033[0m' # No Color
 NETWORK_MODE=false
 HTTP_PORT=""
 HTTPS_PORT=""
+
+# Port HTTPS exposé par le Service ingress-nginx-controller (et donc par le
+# load balancer de Docker Desktop). 443 étant déjà utilisé sur la machine,
+# tout le cluster local passe par 444 : https://<app>.white-wood.local:444
+HTTPS_SERVICE_PORT=444
 
 # Fonction pour vérifier si un port est disponible
 is_port_available() {
@@ -79,7 +84,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --network, -n              Configure l'accès réseau (accessible depuis d'autres appareils)"
             echo "  --http-port PORT           Port HTTP local (défaut: 80 avec sudo, 8080 sans sudo)"
-            echo "  --https-port PORT          Port HTTPS local (défaut: 443 avec sudo, 8443 sans sudo)"
+            echo "  --https-port PORT          Port HTTPS local (défaut: 444, le 443 est réservé à un autre usage)"
             echo "  --help, -h                 Affiche cette aide"
             echo ""
             echo "Variables d'environnement:"
@@ -91,7 +96,7 @@ while [[ $# -gt 0 ]]; do
             echo "Exemples:"
             echo "  $0                                    # Mode local avec ports par défaut"
             echo "  $0 --http-port 8080 --https-port 8443 # Mode local avec ports personnalisés"
-            echo "  sudo $0 --network                      # Mode réseau avec ports 80/443"
+            echo "  sudo $0 --network                      # Mode réseau avec ports 80/444"
             echo "  sudo $0 --network --http-port 8880     # Mode réseau avec port HTTP personnalisé"
             exit 0
             ;;
@@ -206,6 +211,26 @@ if ! kubectl get namespace ingress-nginx &>/dev/null; then
         --timeout=90s
 fi
 
+# Faire écouter le Service ingress-nginx sur $HTTPS_SERVICE_PORT au lieu de 443.
+# Le manifeste upstream (re)positionne 443 : on le corrige après chaque installation.
+HTTPS_PORT_INDEX=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+    -o jsonpath='{range .spec.ports[*]}{.name}{"\n"}{end}' | grep -n '^https$' | cut -d: -f1)
+CURRENT_HTTPS_SVC_PORT=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+    -o jsonpath='{.spec.ports[?(@.name=="https")].port}')
+if [ -n "$HTTPS_PORT_INDEX" ] && [ "$CURRENT_HTTPS_SVC_PORT" != "$HTTPS_SERVICE_PORT" ]; then
+    echo "   Passage du port HTTPS du Service ingress-nginx : $CURRENT_HTTPS_SVC_PORT -> $HTTPS_SERVICE_PORT"
+    kubectl patch svc ingress-nginx-controller -n ingress-nginx --type=json \
+        -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/$((HTTPS_PORT_INDEX - 1))/port\",\"value\":$HTTPS_SERVICE_PORT}]"
+    # Le load balancer Docker Desktop (kindccm-*) publie les ports à sa création :
+    # on le supprime, il est recréé automatiquement avec le nouveau port.
+    LB_CONTAINER=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep '^kindccm-' || true)
+    if [ -n "$LB_CONTAINER" ]; then
+        echo "   Recréation du load balancer Docker ($LB_CONTAINER)..."
+        docker rm -f $LB_CONTAINER >/dev/null
+        kubectl annotate svc ingress-nginx-controller -n ingress-nginx sync-trigger="$(date +%s)" --overwrite >/dev/null
+    fi
+fi
+
 echo -e "${GREEN}✓ Ingress Controller prêt${NC}"
 
 # Vérifier/Installer cert-manager
@@ -254,11 +279,11 @@ echo -e "${YELLOW}🔌 Détermination des ports...${NC}"
 if [ "$EUID" -eq 0 ]; then
     # Avec sudo : ports privilégiés par défaut
     DEFAULT_HTTP_PORT=80
-    DEFAULT_HTTPS_PORT=443
+    DEFAULT_HTTPS_PORT=$HTTPS_SERVICE_PORT
 else
     # Sans sudo : ports non privilégiés par défaut
     DEFAULT_HTTP_PORT=8080
-    DEFAULT_HTTPS_PORT=8443
+    DEFAULT_HTTPS_PORT=$HTTPS_SERVICE_PORT
 fi
 
 # Utiliser les ports spécifiés ou les valeurs par défaut
@@ -353,7 +378,7 @@ echo -e "${YELLOW}🚀 Démarrage du port-forward sur $BIND_ADDRESS...${NC}"
 echo "   Ports: HTTP=$LOCAL_HTTP_PORT, HTTPS=$LOCAL_HTTPS_PORT"
 
 kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller \
-    --address "$BIND_ADDRESS" $LOCAL_HTTP_PORT:80 $LOCAL_HTTPS_PORT:443 > "$LOG_FILE" 2>&1 &
+    --address "$BIND_ADDRESS" $LOCAL_HTTP_PORT:80 $LOCAL_HTTPS_PORT:$HTTPS_SERVICE_PORT > "$LOG_FILE" 2>&1 &
 PORT_FORWARD_PID=$!
 
 echo "$PORT_FORWARD_PID" > "$PID_FILE"

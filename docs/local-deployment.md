@@ -176,20 +176,27 @@ kubectl get pods -n ingress-nginx
 
 ### 2. StorageClass pour les volumes persistants
 
-```bash
-kubectl create -f - <<EOF
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: sbs-default
-provisioner: rancher.io/local-path
-volumeBindingMode: WaitForFirstConsumer
-reclaimPolicy: Delete
-EOF
+Aucune action manuelle n'est nécessaire : Docker Desktop Kubernetes fournit déjà une StorageClass par défaut nommée `standard` (provisioner `docker.io/hostpath` ou `rancher.io/local-path` selon la version de Docker Desktop).
 
-# Vérifier
+Les PVC de la base (`base/*/*-pvc.yaml`) déclarent `storageClassName: sbs-default`, qui est le nom de la StorageClass Scaleway Block Storage utilisée en staging/prod et **n'existe pas en local**. L'overlay `environments/local/kustomization.yaml` corrige automatiquement cela via un patch Kustomize qui remplace `sbs-default` par `standard` sur tous les PVC (`baserow-data`, `n8n-data`, `metabase-data`, `postgresql-data`, `supabase-storage-data`, `redis-data`, `postgres-backup-data`) :
+
+```yaml
+- patch: |
+    - op: replace
+      path: /spec/storageClassName
+      value: standard
+  target:
+    kind: PersistentVolumeClaim
+    name: baserow-data|n8n-data|metabase-data|postgresql-data|supabase-storage-data|redis-data|postgres-backup-data
+```
+
+Ce patch s'applique uniquement quand vous déployez avec `kubectl apply -k environments/local/` (jamais en staging/prod). Vérifiez simplement que la StorageClass par défaut existe :
+
+```bash
 kubectl get storageclass
 ```
+
+**Important** : cette StorageClass stocke les données sur le disque virtuel de la VM Docker Desktop. Si ce disque est réinitialisé (ex. "Reset Kubernetes Cluster" ou "Clean / Purge data" dans Docker Desktop), les PVC et leur contenu sont perdus, `reclaimPolicy` étant généralement `Delete` par défaut sur cette StorageClass.
 
 ### 3. Cert-Manager (optionnel pour le local)
 
@@ -317,7 +324,7 @@ Le script supporte plusieurs options pour personnaliser les ports :
 # Aide
 ./scripts/local/setup-access.sh --help
 
-# Mode local avec ports par défaut (8080/8443 sans sudo, 80/443 avec sudo)
+# Mode local avec ports par défaut (HTTPS sur 444, HTTP sur 8080 sans sudo / 80 avec sudo)
 ./scripts/local/setup-access.sh
 
 # Mode local avec ports personnalisés
@@ -334,8 +341,19 @@ K8S_HTTP_PORT=8080 K8S_HTTPS_PORT=8443 ./scripts/local/setup-access.sh
 ```
 
 **Ports par défaut** :
-- **Avec sudo** : HTTP=80, HTTPS=443
-- **Sans sudo** : HTTP=8080, HTTPS=8443
+- **Avec sudo** : HTTP=80, HTTPS=444
+- **Sans sudo** : HTTP=8080, HTTPS=444
+
+> **Pourquoi 444 ?** Le port 443 est déjà utilisé sur la machine. Le Service `ingress-nginx-controller` expose donc HTTPS sur **444** (au lieu de 443) : c'est ce port que le load balancer de Docker Desktop publie sur l'hôte et vers lequel le `port-forward` pointe. `setup-access.sh` applique ce réglage automatiquement ; pour le faire à la main :
+>
+> ```bash
+> # index 1 = port "https" (vérifier avec : kubectl get svc ingress-nginx-controller -n ingress-nginx -o yaml)
+> kubectl patch svc ingress-nginx-controller -n ingress-nginx --type=json \
+>   -p '[{"op":"replace","path":"/spec/ports/1/port","value":444}]'
+> # Docker Desktop publie les ports à la création de son load balancer : le recréer pour appliquer le changement
+> docker rm -f $(docker ps -a --format '{{.Names}}' | grep '^kindccm-')
+> kubectl annotate svc ingress-nginx-controller -n ingress-nginx sync-trigger="$(date +%s)" --overwrite
+> ```
 
 Si les ports par défaut sont déjà utilisés, le script cherche automatiquement des ports alternatifs disponibles.
 
@@ -359,22 +377,22 @@ HOSTS
 
 ```bash
 # Dans un terminal séparé
-kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80 443:443
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80 444:444
 ```
 
 ### URLs des services
 
 Une fois configuré, accédez aux services via HTTPS :
 
-- **Baserow** : https://baserow.white-wood.local (ou avec le port si différent de 443)
-- **N8N** : https://n8n.white-wood.local
-- **Excalidraw** : https://excalidraw.white-wood.local
-- **Metabase** : https://metabase.white-wood.local
-- **Supabase Studio** : https://supabase.white-wood.local
+- **Baserow** : https://baserow.white-wood.local:444
+- **N8N** : https://n8n.white-wood.local:444
+- **Excalidraw** : https://excalidraw.white-wood.local:444
+- **Metabase** : https://metabase.white-wood.local:444
+- **Supabase Studio** : https://supabase.white-wood.local:444
 
 **Note** : 
 - Les certificats SSL sont auto-signés. Votre navigateur affichera un avertissement de sécurité. Acceptez le certificat pour continuer.
-- Si vous utilisez des ports personnalisés (différents de 443), ajoutez le port dans l'URL : `https://baserow.white-wood.local:8443`
+- Le port **444** doit toujours figurer dans l'URL. Les URLs absolues générées par Baserow et n8n (`BASEROW_PUBLIC_URL`, `PUBLIC_BACKEND_URL`, `PUBLIC_WEB_FRONTEND_URL`, `WEBHOOK_URL`) sont définies avec `:444` dans `environments/local/kustomization.yaml` : si vous changez de port, mettez-les à jour aussi.
 - Le script affiche les URLs complètes avec les ports utilisés à la fin de l'exécution.
 
 ---
@@ -400,7 +418,7 @@ Cette section explique comment configurer l'accès aux services depuis d'autres 
 │                                                             │
 │  ┌──────────────┐        ┌─────────────────────────┐       │
 │  │   dnsmasq    │  →  →  │  kubectl port-forward   │       │
-│  │   (port 53)  │        │  (ports 80/443)         │       │
+│  │   (port 53)  │        │  (ports 80/444)         │       │
 │  └──────────────┘        └───────────┬─────────────┘       │
 │                                      │                      │
 │                                      ↓                      │
@@ -448,7 +466,7 @@ Ce script va :
 - Vérifier que dnsmasq est actif
 - Vérifier que le cluster Kubernetes est accessible
 - Configurer cert-manager et l'Ingress Controller
-- Démarrer le port-forward sur `0.0.0.0:80` et `0.0.0.0:443`
+- Démarrer le port-forward sur `0.0.0.0:80` et `0.0.0.0:444`
 
 #### 3. Arrêt du service
 
@@ -517,7 +535,7 @@ nmcli connection up "Nom de la connexion"
 dig @192.168.x.x baserow.white-wood.local
 
 # Test HTTP
-curl -k https://baserow.white-wood.local
+curl -k https://baserow.white-wood.local:444
 ```
 
 ---

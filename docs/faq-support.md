@@ -286,7 +286,7 @@ tail -f /tmp/k8s-logs/port-forward.log
 
 # Tester la connectivité
 nc -zv 192.168.x.x 80
-nc -zv 192.168.x.x 443
+nc -zv 192.168.x.x 444
 ```
 
 #### Le pare-feu macOS bloque les connexions
