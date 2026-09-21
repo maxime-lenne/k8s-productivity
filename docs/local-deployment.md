@@ -310,41 +310,28 @@ Ce script automatise :
 - Installation et vérification de l'Ingress Controller
 - Installation et configuration de cert-manager
 - Génération automatique des certificats SSL auto-signés
-- Démarrage du port-forward en arrière-plan
-- Détection automatique des ports disponibles
+- Passage du port HTTPS du Service ingress-nginx sur 444 (voir ci-dessous)
+- Vérification que le load balancer de Docker Desktop expose bien les ports 80 et 444
 - Test de connectivité
 
 **Note** : Le script nécessite votre mot de passe pour modifier `/etc/hosts`.
 
 #### Options du script
 
-Le script supporte plusieurs options pour personnaliser les ports :
-
 ```bash
 # Aide
 ./scripts/local/setup-access.sh --help
 
-# Mode local avec ports par défaut (HTTPS sur 444, HTTP sur 8080 sans sudo / 80 avec sudo)
+# Mode local (résolution DNS via /etc/hosts)
 ./scripts/local/setup-access.sh
 
-# Mode local avec ports personnalisés
-./scripts/local/setup-access.sh --http-port 8080 --https-port 8443
-
-# Mode réseau avec ports par défaut (nécessite sudo)
+# Mode réseau (dnsmasq, nécessite sudo)
 sudo ./scripts/local/setup-access.sh --network
-
-# Mode réseau avec ports personnalisés
-sudo ./scripts/local/setup-access.sh --network --http-port 8880 --https-port 9443
-
-# Utilisation de variables d'environnement
-K8S_HTTP_PORT=8080 K8S_HTTPS_PORT=8443 ./scripts/local/setup-access.sh
 ```
 
-**Ports par défaut** :
-- **Avec sudo** : HTTP=80, HTTPS=444
-- **Sans sudo** : HTTP=8080, HTTPS=444
+**Ports** : le script ne lance plus de `kubectl port-forward` et n'a plus d'options de port. Les services sont exposés directement par le load balancer de Docker Desktop (le Service `ingress-nginx-controller` est de type `LoadBalancer`) : **HTTP=80, HTTPS=444**. Ce load balancer écoute sur toutes les interfaces de la machine, quel que soit le mode du script.
 
-> **Pourquoi 444 ?** Le port 443 est déjà utilisé sur la machine. Le Service `ingress-nginx-controller` expose donc HTTPS sur **444** (au lieu de 443) : c'est ce port que le load balancer de Docker Desktop publie sur l'hôte et vers lequel le `port-forward` pointe. `setup-access.sh` applique ce réglage automatiquement ; pour le faire à la main :
+> **Pourquoi 444 ?** Le port 443 est déjà utilisé sur la machine. Le Service `ingress-nginx-controller` expose donc HTTPS sur **444** (au lieu de 443) : c'est ce port que le load balancer de Docker Desktop publie sur l'hôte. `setup-access.sh` applique ce réglage automatiquement ; pour le faire à la main :
 >
 > ```bash
 > # index 1 = port "https" (vérifier avec : kubectl get svc ingress-nginx-controller -n ingress-nginx -o yaml)
@@ -373,11 +360,14 @@ sudo bash -c 'cat >> /etc/hosts' << 'HOSTS'
 HOSTS
 ```
 
-#### Option 2 : Utiliser port-forward (alternative)
+#### Option 2 : Utiliser port-forward (alternative, sans load balancer Docker)
+
+À n'utiliser que si le load balancer Docker Desktop n'est pas disponible. Il occupe déjà les ports 80 et 444 : choisir d'autres ports locaux.
 
 ```bash
 # Dans un terminal séparé
-kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80 444:444
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80 8444:444
+# URLs : https://baserow.white-wood.local:8444, etc.
 ```
 
 ### URLs des services
@@ -417,7 +407,7 @@ Cette section explique comment configurer l'accès aux services depuis d'autres 
 │  Mac Mini (192.168.x.x)                                     │
 │                                                             │
 │  ┌──────────────┐        ┌─────────────────────────┐       │
-│  │   dnsmasq    │  →  →  │  kubectl port-forward   │       │
+│  │   dnsmasq    │  →  →  │  Load balancer Docker   │       │
 │  │   (port 53)  │        │  (ports 80/444)         │       │
 │  └──────────────┘        └───────────┬─────────────┘       │
 │                                      │                      │
@@ -458,7 +448,7 @@ Ce script va :
 #### 2. Démarrage de l'accès réseau
 
 ```bash
-# Démarrer le port-forward réseau (nécessite sudo)
+# Configurer l'accès réseau (nécessite sudo)
 sudo ./scripts/local/setup-access.sh --network
 ```
 
@@ -466,14 +456,13 @@ Ce script va :
 - Vérifier que dnsmasq est actif
 - Vérifier que le cluster Kubernetes est accessible
 - Configurer cert-manager et l'Ingress Controller
-- Démarrer le port-forward sur `0.0.0.0:80` et `0.0.0.0:444`
+- Vérifier que le load balancer Docker expose les ports 80 et 444 (écoute sur `0.0.0.0`)
 
 #### 3. Arrêt du service
 
-```bash
-# Arrêter le port-forward
-./scripts/local/stop-access.sh
+Le load balancer est géré par Docker Desktop : il reste actif tant que le cluster tourne.
 
+```bash
 # Arrêter dnsmasq (optionnel)
 sudo brew services stop dnsmasq
 ```
@@ -615,11 +604,11 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 ### Les services ne sont pas accessibles depuis le réseau
 
 ```bash
-# Vérifier que le port-forward est actif
-ps aux | grep "kubectl port-forward"
+# Vérifier que le load balancer Docker publie bien les ports 80 et 444
+docker ps --format '{{.Names}} {{.Ports}}' | grep kindccm
 
-# Vérifier les logs
-tail -f /tmp/k8s-logs/port-forward.log
+# Vérifier l'IP du load balancer
+kubectl get svc ingress-nginx-controller -n ingress-nginx
 
 # Vérifier dnsmasq
 brew services list | grep dnsmasq
@@ -645,9 +634,6 @@ kubectl get pods -n cert-manager
 
 # Démarrer l'accès réseau
 sudo ./scripts/local/setup-access.sh --network
-
-# Arrêter l'accès
-./scripts/local/stop-access.sh
 
 # Redémarrer dnsmasq
 sudo brew services restart dnsmasq

@@ -52,9 +52,9 @@ Non, pas avec la configuration locale. Pour un accès externe :
 - Utilisez un tunnel (Cloudflare Tunnel, ngrok)
 - Déployez sur un cloud avec un domaine public
 
-### Le port-forward survit-il à un redémarrage ?
+### L'accès survit-il à un redémarrage ?
 
-Non. Vous devez relancer le script après chaque redémarrage. Pour automatiser, créez un LaunchDaemon macOS (voir [local-deployment.md](./local-deployment.md)).
+Oui. Il n'y a plus de `port-forward` : les ports 80 et 444 sont publiés par le load balancer de Docker Desktop, qui est recréé au démarrage du cluster. Si le port HTTPS ne répond plus, relancez `./scripts/local/setup-access.sh` (il remet le Service ingress-nginx sur le port 444).
 
 ---
 
@@ -278,11 +278,8 @@ sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
 #### Les services ne sont pas accessibles depuis le réseau
 
 ```bash
-# Vérifier le port-forward
-ps aux | grep "kubectl port-forward"
-
-# Vérifier les logs
-tail -f /tmp/k8s-logs/port-forward.log
+# Vérifier que le load balancer Docker publie les ports 80 et 444
+docker ps --format '{{.Names}} {{.Ports}}' | grep kindccm
 
 # Tester la connectivité
 nc -zv 192.168.x.x 80

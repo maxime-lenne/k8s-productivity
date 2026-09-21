@@ -2,16 +2,14 @@
 # scripts/local/setup-access.sh
 # Script unifié pour configurer l'accès aux services Kubernetes
 # Usage: ./setup-access.sh [OPTIONS]
-#   --network, -n              Configure l'accès réseau (dnsmasq + écoute sur 0.0.0.0)
-#   --http-port PORT           Port HTTP local (défaut: 80 avec sudo, 8080 sans sudo)
-#   --https-port PORT          Port HTTPS local (défaut: 444, le 443 est réservé à un autre usage)
+#   --network, -n              Configure l'accès réseau (dnsmasq au lieu de /etc/hosts)
 #   --help, -h                 Affiche cette aide
 #
-# Variables d'environnement:
-#   K8S_HTTP_PORT              Port HTTP local
-#   K8S_HTTPS_PORT             Port HTTPS local
+# Les services sont exposés par le load balancer de Docker Desktop (Service
+# ingress-nginx-controller de type LoadBalancer) : HTTP sur 80, HTTPS sur 444
+# (443 est déjà utilisé sur la machine). Aucun port-forward n'est nécessaire.
 #
-# Sans option, configure l'accès local uniquement (127.0.0.1)
+# Sans option, la résolution DNS des domaines *.white-wood.local se fait via /etc/hosts
 
 set -e
 
@@ -24,44 +22,12 @@ NC='\033[0m' # No Color
 
 # Mode par défaut : local
 NETWORK_MODE=false
-HTTP_PORT=""
-HTTPS_PORT=""
 
-# Port HTTPS exposé par le Service ingress-nginx-controller (et donc par le
-# load balancer de Docker Desktop). 443 étant déjà utilisé sur la machine,
-# tout le cluster local passe par 444 : https://<app>.white-wood.local:444
+# Ports exposés par le Service ingress-nginx-controller (et donc publiés sur la
+# machine par le load balancer de Docker Desktop). 443 étant déjà utilisé sur la
+# machine, tout le cluster local passe par 444 : https://<app>.white-wood.local:444
+HTTP_SERVICE_PORT=80
 HTTPS_SERVICE_PORT=444
-
-# Fonction pour vérifier si un port est disponible
-is_port_available() {
-    local port=$1
-    if command -v lsof >/dev/null 2>&1; then
-        ! lsof -i :"$port" >/dev/null 2>&1
-    elif command -v netstat >/dev/null 2>&1; then
-        ! netstat -an | grep -q ":$port.*LISTEN"
-    else
-        # Si aucun outil n'est disponible, on suppose que le port est disponible
-        true
-    fi
-}
-
-# Fonction pour trouver un port disponible
-find_available_port() {
-    local start_port=$1
-    local port=$start_port
-    local max_attempts=100
-    
-    while [ $port -lt $((start_port + max_attempts)) ]; do
-        if is_port_available "$port"; then
-            echo "$port"
-            return 0
-        fi
-        port=$((port + 1))
-    done
-    
-    echo ""
-    return 1
-}
 
 # Parser les arguments
 while [[ $# -gt 0 ]]; do
@@ -70,34 +36,22 @@ while [[ $# -gt 0 ]]; do
             NETWORK_MODE=true
             shift
             ;;
-        --http-port)
-            HTTP_PORT="$2"
-            shift 2
-            ;;
-        --https-port)
-            HTTPS_PORT="$2"
-            shift 2
-            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --network, -n              Configure l'accès réseau (accessible depuis d'autres appareils)"
-            echo "  --http-port PORT           Port HTTP local (défaut: 80 avec sudo, 8080 sans sudo)"
-            echo "  --https-port PORT          Port HTTPS local (défaut: 444, le 443 est réservé à un autre usage)"
+            echo "  --network, -n              Configure l'accès réseau (dnsmasq, accessible depuis d'autres appareils)"
             echo "  --help, -h                 Affiche cette aide"
             echo ""
-            echo "Variables d'environnement:"
-            echo "  K8S_HTTP_PORT              Port HTTP local"
-            echo "  K8S_HTTPS_PORT             Port HTTPS local"
+            echo "Les services sont exposés par le load balancer de Docker Desktop :"
+            echo "  HTTP  : $HTTP_SERVICE_PORT"
+            echo "  HTTPS : $HTTPS_SERVICE_PORT (le 443 est déjà utilisé sur la machine)"
             echo ""
-            echo "Sans option, configure l'accès local uniquement (127.0.0.1)"
+            echo "Sans option, la résolution DNS se fait via /etc/hosts (cette machine uniquement)"
             echo ""
             echo "Exemples:"
-            echo "  $0                                    # Mode local avec ports par défaut"
-            echo "  $0 --http-port 8080 --https-port 8443 # Mode local avec ports personnalisés"
-            echo "  sudo $0 --network                      # Mode réseau avec ports 80/444"
-            echo "  sudo $0 --network --http-port 8880     # Mode réseau avec port HTTP personnalisé"
+            echo "  $0                  # Mode local (/etc/hosts)"
+            echo "  sudo $0 --network   # Mode réseau (dnsmasq)"
             exit 0
             ;;
         *)
@@ -107,14 +61,6 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
-# Utiliser les variables d'environnement si les ports ne sont pas spécifiés en argument
-if [ -z "$HTTP_PORT" ] && [ -n "$K8S_HTTP_PORT" ]; then
-    HTTP_PORT="$K8S_HTTP_PORT"
-fi
-if [ -z "$HTTPS_PORT" ] && [ -n "$K8S_HTTPS_PORT" ]; then
-    HTTPS_PORT="$K8S_HTTPS_PORT"
-fi
 
 # Fonction pour vérifier si une commande existe
 command_exists() {
@@ -127,9 +73,16 @@ if [ "$NETWORK_MODE" = true ]; then
     echo -e "${BLUE}   Mode: Accessible depuis le réseau local${NC}"
 else
     echo -e "${GREEN}🚀 Configuration de l'accès LOCAL aux services Kubernetes${NC}"
-    echo -e "${BLUE}   Mode: Accessible uniquement depuis cette machine${NC}"
+    echo -e "${BLUE}   Mode: Résolution DNS via /etc/hosts (cette machine)${NC}"
 fi
 echo ""
+
+# Le mode réseau pilote dnsmasq (brew services) et nécessite les droits root
+if [ "$NETWORK_MODE" = true ] && [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}❌ Ce script doit être exécuté avec sudo pour le mode réseau${NC}"
+    echo "   Utilisez : sudo ./scripts/local/setup-access.sh --network"
+    exit 1
+fi
 
 # Vérifier que kubectl est disponible
 if ! command_exists kubectl; then
@@ -177,7 +130,6 @@ if [ "$NETWORK_MODE" = true ]; then
     fi
 
     echo -e "${GREEN}✓ IP locale détectée : $MAC_IP${NC}"
-    BIND_ADDRESS="0.0.0.0"
     DOMAIN_SUFFIX="white-wood.local"
 else
     echo -e "${YELLOW}📝 Configuration de /etc/hosts...${NC}"
@@ -194,7 +146,6 @@ else
         echo -e "${GREEN}✓ /etc/hosts configuré${NC}"
     fi
 
-    BIND_ADDRESS="127.0.0.1"
     DOMAIN_SUFFIX="white-wood.local"
 fi
 
@@ -253,154 +204,45 @@ fi
 
 echo -e "${GREEN}✓ cert-manager configuré${NC}"
 
-# Configuration du port-forward
+# Exposition via le load balancer de Docker Desktop
 echo ""
-echo -e "${YELLOW}🔌 Configuration du port-forward...${NC}"
+echo -e "${YELLOW}🔌 Vérification de l'exposition du cluster...${NC}"
 
-# Arrêter les port-forwards existants
-PORT_FORWARD_PIDS=$(pgrep -f "kubectl port-forward.*ingress-nginx-controller" || true)
-if [ -n "$PORT_FORWARD_PIDS" ]; then
-    echo "   Arrêt des port-forwards existants..."
-    echo "$PORT_FORWARD_PIDS" | xargs kill 2>/dev/null || true
+# Docker Desktop (kind) publie directement les ports du Service LoadBalancer
+# ingress-nginx-controller sur la machine : aucun port-forward n'est nécessaire.
+LB_IP=""
+for i in {1..30}; do
+    LB_IP=$(kubectl get svc ingress-nginx-controller -n ingress-nginx \
+        -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+    [ -n "$LB_IP" ] && break
     sleep 2
-fi
+done
 
-# Créer le répertoire de logs
-LOG_DIR="/tmp/k8s-logs"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/port-forward.log"
-PID_FILE="$LOG_DIR/port-forward.pid"
-PORTS_FILE="$LOG_DIR/port-forward.ports"
-
-# Déterminer les ports à utiliser
-echo ""
-echo -e "${YELLOW}🔌 Détermination des ports...${NC}"
-
-if [ "$EUID" -eq 0 ]; then
-    # Avec sudo : ports privilégiés par défaut
-    DEFAULT_HTTP_PORT=80
-    DEFAULT_HTTPS_PORT=$HTTPS_SERVICE_PORT
-else
-    # Sans sudo : ports non privilégiés par défaut
-    DEFAULT_HTTP_PORT=8080
-    DEFAULT_HTTPS_PORT=$HTTPS_SERVICE_PORT
-fi
-
-# Utiliser les ports spécifiés ou les valeurs par défaut
-if [ -n "$HTTP_PORT" ]; then
-    LOCAL_HTTP_PORT="$HTTP_PORT"
-else
-    LOCAL_HTTP_PORT="$DEFAULT_HTTP_PORT"
-fi
-
-if [ -n "$HTTPS_PORT" ]; then
-    LOCAL_HTTPS_PORT="$HTTPS_PORT"
-else
-    LOCAL_HTTPS_PORT="$DEFAULT_HTTPS_PORT"
-fi
-
-# Vérifier si les ports sont disponibles
-HTTP_PORT_AVAILABLE=true
-HTTPS_PORT_AVAILABLE=true
-
-if ! is_port_available "$LOCAL_HTTP_PORT"; then
-    HTTP_PORT_AVAILABLE=false
-    echo -e "${YELLOW}⚠ Port HTTP $LOCAL_HTTP_PORT est déjà utilisé${NC}"
-    
-    if [ -z "$HTTP_PORT" ]; then
-        # Port non spécifié, chercher un port alternatif
-        echo "   Recherche d'un port HTTP alternatif..."
-        ALTERNATIVE_HTTP=$(find_available_port $((LOCAL_HTTP_PORT + 1)))
-        if [ -n "$ALTERNATIVE_HTTP" ]; then
-            LOCAL_HTTP_PORT="$ALTERNATIVE_HTTP"
-            echo -e "${GREEN}✓ Port HTTP $LOCAL_HTTP_PORT disponible${NC}"
-            HTTP_PORT_AVAILABLE=true
-        else
-            echo -e "${RED}❌ Impossible de trouver un port HTTP disponible${NC}"
-        fi
-    else
-        echo -e "${RED}❌ Le port HTTP $LOCAL_HTTP_PORT spécifié est déjà utilisé${NC}"
-        echo "   Spécifiez un autre port avec --http-port ou la variable K8S_HTTP_PORT"
-    fi
-else
-    echo -e "${GREEN}✓ Port HTTP $LOCAL_HTTP_PORT disponible${NC}"
-fi
-
-if ! is_port_available "$LOCAL_HTTPS_PORT"; then
-    HTTPS_PORT_AVAILABLE=false
-    echo -e "${YELLOW}⚠ Port HTTPS $LOCAL_HTTPS_PORT est déjà utilisé${NC}"
-    
-    if [ -z "$HTTPS_PORT" ]; then
-        # Port non spécifié, chercher un port alternatif
-        echo "   Recherche d'un port HTTPS alternatif..."
-        ALTERNATIVE_HTTPS=$(find_available_port $((LOCAL_HTTPS_PORT + 1)))
-        if [ -n "$ALTERNATIVE_HTTPS" ]; then
-            LOCAL_HTTPS_PORT="$ALTERNATIVE_HTTPS"
-            echo -e "${GREEN}✓ Port HTTPS $LOCAL_HTTPS_PORT disponible${NC}"
-            HTTPS_PORT_AVAILABLE=true
-        else
-            echo -e "${RED}❌ Impossible de trouver un port HTTPS disponible${NC}"
-        fi
-    else
-        echo -e "${RED}❌ Le port HTTPS $LOCAL_HTTPS_PORT spécifié est déjà utilisé${NC}"
-        echo "   Spécifiez un autre port avec --https-port ou la variable K8S_HTTPS_PORT"
-    fi
-else
-    echo -e "${GREEN}✓ Port HTTPS $LOCAL_HTTPS_PORT disponible${NC}"
-fi
-
-# Vérifier les permissions pour les ports privilégiés
-if [ "$NETWORK_MODE" = true ]; then
-    if [ "$EUID" -ne 0 ]; then
-        echo -e "${RED}❌ Ce script doit être exécuté avec sudo pour le mode réseau${NC}"
-        echo "   Utilisez : sudo ./scripts/local/setup-access.sh --network"
-        exit 1
-    fi
-fi
-
-# Vérifier que les ports sont disponibles avant de continuer
-if [ "$HTTP_PORT_AVAILABLE" != "true" ] || [ "$HTTPS_PORT_AVAILABLE" != "true" ]; then
-    echo ""
-    echo -e "${RED}❌ Impossible de continuer : ports non disponibles${NC}"
-    echo "   HTTP: $LOCAL_HTTP_PORT (disponible: $HTTP_PORT_AVAILABLE)"
-    echo "   HTTPS: $LOCAL_HTTPS_PORT (disponible: $HTTPS_PORT_AVAILABLE)"
-    echo ""
-    echo "   Solutions :"
-    echo "   1. Libérez les ports utilisés"
-    echo "   2. Spécifiez d'autres ports : $0 --http-port <PORT> --https-port <PORT>"
-    echo "   3. Utilisez des variables d'environnement : K8S_HTTP_PORT=<PORT> K8S_HTTPS_PORT=<PORT> $0"
+if [ -z "$LB_IP" ]; then
+    echo -e "${RED}❌ Le Service ingress-nginx-controller n'a pas d'IP de load balancer${NC}"
+    echo "   Vérifiez que Kubernetes (kind) est activé dans Docker Desktop et que le"
+    echo "   load balancer tourne : docker ps | grep kindccm"
     exit 1
 fi
+echo -e "${GREEN}✓ Load balancer actif ($LB_IP)${NC}"
 
-# Démarrer le port-forward
-echo ""
-echo -e "${YELLOW}🚀 Démarrage du port-forward sur $BIND_ADDRESS...${NC}"
-echo "   Ports: HTTP=$LOCAL_HTTP_PORT, HTTPS=$LOCAL_HTTPS_PORT"
-
-kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller \
-    --address "$BIND_ADDRESS" $LOCAL_HTTP_PORT:80 $LOCAL_HTTPS_PORT:$HTTPS_SERVICE_PORT > "$LOG_FILE" 2>&1 &
-PORT_FORWARD_PID=$!
-
-echo "$PORT_FORWARD_PID" > "$PID_FILE"
-# Sauvegarder les ports utilisés
-echo "HTTP_PORT=$LOCAL_HTTP_PORT" > "$PORTS_FILE"
-echo "HTTPS_PORT=$LOCAL_HTTPS_PORT" >> "$PORTS_FILE"
-echo "BIND_ADDRESS=$BIND_ADDRESS" >> "$PORTS_FILE"
-sleep 3
-
-# Vérifier que le port-forward est actif
-if ps -p $PORT_FORWARD_PID > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ Port-forward actif (PID: $PORT_FORWARD_PID)${NC}"
-    echo "   HTTP : $BIND_ADDRESS:$LOCAL_HTTP_PORT"
-    echo "   HTTPS: $BIND_ADDRESS:$LOCAL_HTTPS_PORT"
-else
-    echo -e "${RED}❌ Échec du démarrage du port-forward${NC}"
-    if [ -f "$LOG_FILE" ]; then
-        echo "   Dernières lignes du log :"
-        tail -5 "$LOG_FILE" | sed 's/^/   /'
+HTTPS_READY=false
+for i in {1..30}; do
+    if curl -sk -o /dev/null -m 3 "https://127.0.0.1:$HTTPS_SERVICE_PORT/" 2>/dev/null; then
+        HTTPS_READY=true
+        break
     fi
+    sleep 2
+done
+
+if [ "$HTTPS_READY" != "true" ]; then
+    echo -e "${RED}❌ Le port HTTPS $HTTPS_SERVICE_PORT ne répond pas sur cette machine${NC}"
+    echo "   Le load balancer Docker publie peut-être encore l'ancien port :"
+    docker ps --format '   {{.Names}} {{.Ports}}' 2>/dev/null | grep kindccm || true
+    echo "   Voir docs/local-deployment.md (« Pourquoi 444 ? »)"
     exit 1
 fi
+echo -e "${GREEN}✓ HTTP : $HTTP_SERVICE_PORT, HTTPS : $HTTPS_SERVICE_PORT${NC}"
 
 # Vérification des certificats
 echo ""
@@ -426,13 +268,7 @@ echo ""
 echo -e "${YELLOW}🧪 Test de connectivité...${NC}"
 sleep 2
 
-TEST_HOST="baserow.$DOMAIN_SUFFIX"
-# Toujours inclure le port dans l'URL de test si ce n'est pas le port standard
-if [ "$LOCAL_HTTPS_PORT" != "443" ]; then
-    TEST_URL="https://$TEST_HOST:$LOCAL_HTTPS_PORT"
-else
-    TEST_URL="https://$TEST_HOST"
-fi
+TEST_URL="https://baserow.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
 
 if curl -s -k -o /dev/null -w "%{http_code}" "$TEST_URL" 2>/dev/null | grep -qE "200|301|302|404"; then
     echo -e "${GREEN}✓ Services accessibles${NC}"
@@ -456,26 +292,16 @@ fi
 
 echo ""
 echo "📦 Services disponibles :"
-# Afficher les URLs avec le port si ce n'est pas le port standard HTTPS
-if [ "$LOCAL_HTTPS_PORT" != "443" ]; then
-    echo "   • https://baserow.$DOMAIN_SUFFIX:$LOCAL_HTTPS_PORT"
-    echo "   • https://n8n.$DOMAIN_SUFFIX:$LOCAL_HTTPS_PORT"
-    echo "   • https://excalidraw.$DOMAIN_SUFFIX:$LOCAL_HTTPS_PORT"
-    echo "   • https://metabase.$DOMAIN_SUFFIX:$LOCAL_HTTPS_PORT"
-    echo "   • https://supabase.$DOMAIN_SUFFIX:$LOCAL_HTTPS_PORT"
-else
-    echo "   • https://baserow.$DOMAIN_SUFFIX"
-    echo "   • https://n8n.$DOMAIN_SUFFIX"
-    echo "   • https://excalidraw.$DOMAIN_SUFFIX"
-    echo "   • https://metabase.$DOMAIN_SUFFIX"
-    echo "   • https://supabase.$DOMAIN_SUFFIX"
-fi
+echo "   • https://baserow.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
+echo "   • https://n8n.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
+echo "   • https://excalidraw.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
+echo "   • https://metabase.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
+echo "   • https://supabase.$DOMAIN_SUFFIX:$HTTPS_SERVICE_PORT"
 
-# Afficher les ports utilisés
 echo ""
-echo "🔌 Ports utilisés :"
-echo "   • HTTP : $LOCAL_HTTP_PORT"
-echo "   • HTTPS: $LOCAL_HTTPS_PORT"
+echo "🔌 Ports exposés par le load balancer Docker Desktop :"
+echo "   • HTTP : $HTTP_SERVICE_PORT"
+echo "   • HTTPS: $HTTPS_SERVICE_PORT"
 
 if [ "$NETWORK_MODE" = true ]; then
     echo ""
@@ -486,9 +312,8 @@ fi
 
 echo ""
 echo "🔧 Commandes utiles :"
-echo "   • Arrêter : ./scripts/local/stop-access.sh"
-echo "   • Logs : tail -f $LOG_FILE"
 echo "   • État : kubectl get pods"
+echo "   • Load balancer : docker ps | grep kindccm"
 echo ""
 echo "🔐 Note : Les certificats sont auto-signés (avertissement navigateur normal)"
 echo ""

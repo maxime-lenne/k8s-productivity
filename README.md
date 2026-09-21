@@ -159,26 +159,14 @@ kubectl apply -k environments/<environnement>/
 ### Accès local
 
 ```bash
-# Démarrer l'accès local (127.0.0.1)
+# Configurer l'accès local (résolution via /etc/hosts)
 ./scripts/local/setup-access.sh
 
-# Démarrer l'accès local avec ports personnalisés
-./scripts/local/setup-access.sh --http-port 8080 --https-port 8443
-
-# Démarrer l'accès réseau (0.0.0.0, nécessite sudo)
+# Configurer l'accès réseau (dnsmasq, nécessite sudo)
 sudo ./scripts/local/setup-access.sh --network
-
-# Démarrer l'accès réseau avec ports personnalisés
-sudo ./scripts/local/setup-access.sh --network --http-port 8880 --https-port 9443
-
-# Utiliser des variables d'environnement pour les ports
-K8S_HTTP_PORT=8080 K8S_HTTPS_PORT=8443 ./scripts/local/setup-access.sh
-
-# Arrêter l'accès
-./scripts/local/stop-access.sh
 ```
 
-**Note** : le port HTTPS par défaut est **444**. Si un port par défaut est déjà utilisé, le script détecte automatiquement un port alternatif disponible (les URLs affichées à la fin en tiennent compte).
+**Note** : il n'y a plus de `port-forward`. Les services sont exposés par le load balancer de Docker Desktop (Service `ingress-nginx-controller`) : HTTP sur **80** et HTTPS sur **444** (le 443 est déjà utilisé). Le script vérifie que ces ports répondent et affiche les URLs.
 
 ### DNS réseau local
 
