@@ -1,0 +1,36 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: postgres-backup
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              # bitnami/kubectl:<tag> n'existe plus sur Docker Hub, on utilise le miroir legacy
+              image: bitnamilegacy/kubectl:1.33
+              command: ["/bin/bash", "/scripts/postgres-backup.sh"]
+              env:
+                - name: NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.namespace
+              volumeMounts:
+                - name: backup-scripts
+                  mountPath: /scripts
+                - name: backup-data
+                  mountPath: /backups
+          volumes:
+            - name: backup-scripts
+              configMap:
+                name: postgres-backup-script
+                defaultMode: 0755
+            - name: backup-data
+              persistentVolumeClaim:
+                claimName: postgres-backup-data

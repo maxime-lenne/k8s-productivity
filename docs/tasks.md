@@ -15,8 +15,8 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
    - [ ] Implement environment-specific deployments (dev, staging, prod)
 
 3. [ ] Implement a backup and restore strategy
-   - [ ] Set up automated backups for PostgreSQL databases
-   - [ ] Configure backup retention policies
+   - [x] Set up automated backups for PostgreSQL databases (CronJob `postgres-backup`, daily at 01:00, tested manually on 2026-09-21)
+   - [x] Configure backup retention policies (script removes dumps older than 7 days)
    - [ ] Create and document restore procedures
    - [ ] Test backup and restore processes
 
@@ -80,8 +80,8 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
     - [ ] Make scripts more modular and reusable
 
 15. [ ] Implement persistent storage for Redis
-    - [ ] Add PersistentVolumeClaim for Redis data
-    - [ ] Configure Redis to use persistent storage
+    - [x] Add PersistentVolumeClaim for Redis data
+    - [x] Configure Redis to use persistent storage (AOF enabled, `/data` on `redis-data`)
     - [ ] Ensure proper backup and restore procedures
 
 ## Documentation Improvements
@@ -138,3 +138,49 @@ This document contains a prioritized list of tasks to improve the Kubernetes pro
     - [ ] Identify applicable compliance requirements
     - [ ] Implement tests for compliance verification
     - [ ] Create compliance documentation and reports
+
+## Local Cluster Stabilization (follow-up of 2026-09-21)
+
+Context: the local Docker Desktop cluster was crash-looping (Docker VM at 8 GB with 116 % memory limits, swap full). The VM is now at 16 GB / 8 CPU / 2 GB swap, PVs are `Retain`, and a manual backup exists in `~/k8s-backups/20260921-115518/`. HTTPS is now exposed on port **444** and HTTP on **8080** (80 and 443 are used by the `houblons-nous` project on the same machine).
+
+26. [ ] Push the local commits (branch `add-excalidraw-metabase-supabase`) and open a PR
+    - [x] Commit the pending changes (backup CronJob + Redis PVC, port 444 + kong/realtime limits, shared Claude settings, port-forward removal)
+    - [ ] Push and open the PR against `main`
+
+27. [ ] Watch the cluster for regressions (24-48 h)
+    - [ ] Check `kubectl get pods -A` for growing restart counters
+    - [ ] Baseline that cannot be reset (static pods / DaemonSets): `kube-scheduler` 2213, `kube-controller-manager` 2188, `kindnet` 11, `kube-proxy` 10
+    - [ ] If a pod restarts, inspect `lastState` (OOMKilled vs. probe failure) before changing limits
+    - [ ] Install metrics-server (`kubectl top` currently fails: "Metrics API not available")
+
+28. [ ] Keep the local cluster from colliding with the `houblons-nous` project (other project, same machine)
+    - [x] The Docker container `baserow` is NOT a duplicate: it is `houblons-nous` (compose project `houblon-nous`, `~/Documents_non_icloud/workspace_python/houblon-nous`), served at `https://houblons-nous.white-wood.tech` through a Cloudflare tunnel (`cloudflared`) whose origin is `http://localhost:80`. Never stop/remove it from this repo
+    - [x] It publishes host ports 80 and 443, so the local cluster must not: it uses 8080 (HTTP) and 444 (HTTPS)
+    - [ ] Its container was left without any network after the Docker Desktop restart (no published port, tunnel gets a 404): recreate it from its project with `docker compose up -d --force-recreate` (data is on the host bind mount `data/db/data`, not in the container)
+    - [ ] Add a check in `setup-access.sh` that warns if a container other than the load balancer publishes 8080/444
+    - [ ] Do NOT run `docker system prune` / `docker volume prune` (volume `baserow_data` belongs to houblons-nous; `baudelet-dev_postgres_data` looks unused but may hold data)
+
+29. [ ] Make backups survive the cluster
+    - [ ] Copy dumps out of the `postgres-backup-data` PVC (it is local to the cluster) to the Mac or remote storage
+    - [ ] Test `scripts/backup/postgres-restore.sh` against a fresh backup (restore into a scratch database)
+    - [ ] Replace `bitnamilegacy/kubectl:1.33` (unmaintained mirror, kubectl 1.33 vs. server 1.35) with a maintained image that has a shell
+    - [ ] Keep `~/k8s-backups/` until a restore has been validated
+
+30. [ ] Make PV retention declarative
+    - [ ] The 5 existing PVs were patched to `Retain` by hand; new PVs from the `standard` (local-path) class are still `Delete`
+    - [ ] Create a `Retain` StorageClass for local and use it in the local overlay (PVC `storageClassName` is immutable: plan a migration)
+
+31. [ ] Finish the port 444 migration
+    - [x] Run `setup-access.sh` end to end in local mode (`kubectl port-forward` removed: the Docker Desktop load balancer publishes 8080/444 and the script only checks it)
+    - [ ] The load balancer listens on all interfaces, so "local" mode is no longer restricted to this machine: decide whether that is acceptable (macOS firewall or another approach otherwise)
+    - [ ] `scripts/local/stop-access.sh` only kills leftover port-forwards now and has nothing left to stop: delete it (and its mentions in README / docs) or repurpose it
+    - [ ] Verify `--network` mode (dnsmasq + `0.0.0.0`) with port 444 from another device
+    - [ ] Align Supabase public URLs: `GOTRUE_SITE_URL` / `API_EXTERNAL_URL` (`http://localhost:3000`) and Studio `http://localhost:4000` should point to `https://supabase.white-wood.local:444`
+    - [ ] Check `scripts/staging/*` and staging/prod docs: they must keep 443
+
+32. [ ] Tune resources per environment
+    - [ ] Baserow: request 2 Gi / limit 4 Gi is heavy for local; set a lower limit in the local overlay
+    - [ ] Base limits for kong (512 Mi) and realtime (256 Mi) are too low and only fixed in the local overlay: check staging/prod
+    - [ ] Check why `supabase-secret` shows `configured` on every `kubectl apply -k` (make sure placeholder values never overwrite live secrets)
+    - [ ] Document the minimum Docker Desktop resources for the local stack (>= 12 GB RAM recommended) in `docs/local-deployment.md`
+    - [ ] Find out what scaled `metabase` to 0 replicas on 2026-09-21 (not done manually) and whether a script does it

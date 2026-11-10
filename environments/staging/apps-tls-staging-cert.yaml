@@ -21,8 +21,11 @@ spec:
     - server auth
     - client auth
   dnsNames:
-    - baserow.staging.maxime-lenne.fr  # Repris de la ConfigMap BASEROW_STAGING_DOMAIN
-    - n8n.staging.maxime-lenne.fr  # Repris de la ConfigMap N8N_STAGING_DOMAIN
+    - baserow.staging.maxime-lenne.fr
+    - n8n.staging.maxime-lenne.fr
+    - excalidraw.staging.maxime-lenne.fr
+    - metabase.staging.maxime-lenne.fr
+    - supabase.staging.maxime-lenne.fr
   issuerRef:
     name: letsencrypt-prod  # Utiliser l'issuer de production
     kind: ClusterIssuer

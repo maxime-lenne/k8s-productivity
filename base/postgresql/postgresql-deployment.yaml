@@ -63,6 +63,36 @@ spec:
                 secretKeyRef:
                   name: postgresql-secret
                   key: BASEROW_DB_PASSWORD
+            - name: METABASE_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_NAME
+            - name: METABASE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_USER
+            - name: METABASE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: METABASE_DB_PASSWORD
+            - name: SUPABASE_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_NAME
+            - name: SUPABASE_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_USER
+            - name: SUPABASE_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: SUPABASE_DB_PASSWORD
           resources:
             requests:
               memory: "256Mi"
